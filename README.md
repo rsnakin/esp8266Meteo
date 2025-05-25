@@ -116,4 +116,4 @@ MIT License.
 
 ## 👤 Author
 
-[YourName](https://github.com/rsnakin)
+[RSnakin](https://github.com/rsnakin)
