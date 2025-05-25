@@ -37,8 +37,9 @@ esp8266Meteo/
 │   ├── reload.png
 │   ├── loader.gif
 │   └── icon.png
-├── flashFS.src/         # Source (uncompressed) files for web UI
-│   ├── prepareData.pl   # Script to compress and copy to /data
+├── flashFS.src/              # Source (uncompressed) files for web UI
+│   ├── prepareDataLinux.pl   # Script for Linux to compress and copy to /data
+│   ├── prepareDataWin.pl     # Script for Windows to compress and copy to /data
 │   ├── ajax.js
 │   ├── bs.010.css
 │   ├── bs.025.css
