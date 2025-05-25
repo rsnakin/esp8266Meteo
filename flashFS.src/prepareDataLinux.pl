@@ -82,7 +82,7 @@ foreach my $file (@files) {
 foreach my $file (@plain_files) {
 	print "\n############################################### [$file]\n";
 	if( -e $file) {
-		my $cmd = "copy $file .." . '\\' . $outDir . '\\' . $file;
+		my $cmd = "cp $file ../" . $outDir . '/' . $file;
 		print "$cmd ...";
 		system($cmd);
 		print "\t\tdone\n";
