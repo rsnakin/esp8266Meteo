@@ -473,7 +473,7 @@ void getAllData() {
     snprintf(
         response, sizeof(response),
         "{\"DS18B20_t\":\"%+2.2f°C\",\"BMP180_t\":\"%+2.2f°C\",\"DHT11_t\":\"%+d°C\",\
-    \"BMP180_p\":\"%2.2f мм рт.ст (%2.3f кПа)\",\"DHT11_h\":\"%d%c (%d%c)\",\"version\":\"%s SerialOut:%s Build:%s\",\
+    \"BMP180_p\":\"%2.2f mmHg (%2.3f kPa)\",\"DHT11_h\":\"%d%c (%d%c)\",\"version\":\"%s SerialOut:%s Build:%s\",\
     \"ip\":\"%d.%d.%d.%d\",\"uptime\":\"%d days %02d:%02d:%02d\",\"time\":\"%s\",\"start_time\":\"%s\",\
     \"read_time\":\"%s\",\"read_counter\":\"%lu [%s: %lu msec]\",\"msgs\":\"%lu\",\"volts\":\"%2.3fV\",\"freq\":\"%u MHz\"}",
         DS18B20Temp, BMP180Temp, DHTTemp, BMP180PressureMM,
