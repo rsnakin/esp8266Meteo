@@ -1,0 +1,283 @@
+/*Version 1.07/script.348.js*/
+#tdHeader {
+	text-align:right;
+	padding-top:5px;
+	padding-bottom:5px;
+	padding-right:20px;
+	background:linear-gradient(0deg, #89bfff, white), #c4edff;
+	border: 1px solid rgb(172,186,255);
+}
+#divHeader {
+	padding:2px;
+	padding-right:10px;
+	padding-left:10px;
+	background:var(--bs-table-bg);
+	border-radius:21px;
+	text-align:left;
+	position:relative;
+	cursor:default;
+}
+#strongHeader {
+	font-size:20px;
+	padding-left:0;
+	padding-right:0;
+	color:rgb(50,100,255);
+	text-shadow:1px 1px var(--bs-border-color-translucent);
+}
+.buttonsLeft {
+	cursor:pointer;
+	padding-top:1px !important;
+	padding-bottom:3px !important;
+	padding-right:10px !important;
+	padding-left:10px !important;
+	background:linear-gradient(0deg, #79c7ff, white), #cae9ff;
+	border-radius:21px;
+	border:1px solid rgb(172,186,255);	
+}
+.buttonsStrong {
+	font-size:12px;
+	padding-left:0;
+	padding-right:0;
+	-webkit-touch-callout: none;
+	-webkit-user-select: none;
+	-khtml-user-select: none;
+	-moz-user-select: none;
+	-ms-user-select: none;
+	user-select: none;	
+}
+.tdTitle {
+	width:50%;
+	height:50%;
+	text-align:right;
+	color:rgb(48,151,255);
+	padding-top:3px !important;
+	padding-bottom:3px !important;
+	border-bottom:1px solid rgb(92,172,252);
+	cursor:default;
+}
+.tdValue {
+	padding-top:3px !important;
+	padding-bottom:3px !important;
+	border-width:0px;
+	border-bottom:1px solid rgb(92,172,252);
+/*	font-weight:bold; */
+	font-family:monospace;
+	color:rgb(126,134,139);
+	cursor:default;
+}
+.tdTitleBottom {
+	width:50%;
+	height:50%;
+	text-align:right;
+	font-weight:bold;
+	color:rgb(48,151,255);
+	padding-top:3px !important;
+	padding-bottom:3px !important;
+	cursor:default;
+}
+.tdValueBottom {
+	padding-top:3px !important;
+	padding-bottom:3px !important;
+	border-width:0px;
+	font-weight:bold;
+	color:rgb(126,134,139);
+	cursor:default;
+}
+.tdTitleMOver {
+	text-align:right;
+	color:#333;
+	padding-top:3px !important;
+	padding-bottom:3px !important;
+	border-bottom:1px solid rgb(92,172,252);
+	background:linear-gradient(270deg, rgba(0,133,255,0.31), white);
+	cursor:default;
+}
+.tdValueMOver {
+	padding-top:3px !important;
+	padding-bottom:3px !important;
+	border-width:0px;
+	border-bottom:1px solid rgb(92,172,252);
+	background:linear-gradient(90deg, #0085ff50, white);
+/*	font-weight:bold; */
+	font-family:monospace;
+	cursor:default;
+}
+.firstLogTD_UF {
+	padding-top:0px !important;
+	padding-bottom:0px !important;
+	border-bottom-style:solid;
+	border-bottom-color:rgb(92,172,252);
+	text-align:left;
+	font-weight:bold;
+	font-size:20px;
+	color:rgb(0,255,25);
+	width: 1%;
+}
+.firstLogTD_RM {
+	padding-top:0px !important;
+	padding-bottom:0px !important;
+	border-bottom-style:solid;
+	border-bottom-color:rgb(92,172,252);
+	text-align:left;
+	font-weight:bold;
+	font-size:20px;
+	color:rgb(255,0,0);
+	width: 1%;
+}
+.firstLogTD_SM {
+	border-bottom-style:solid;
+	border-bottom-color:rgb(92,172,252);
+	padding-top:0px !important;
+	padding-bottom:0px !important;
+	font-size:20px;
+	font-weight:bold;
+	text-align:left;
+	color:rgb(0,128,255);
+	width: 1%;
+}
+.firstLogTD_RS {
+	border-bottom-style:solid;
+	border-bottom-color:rgb(92,172,252);
+	padding-top:0px !important;
+	padding-bottom:0px !important;
+	font-size:20px;
+	font-weight:bold;
+	text-align:left;
+	color:rgb(255,0,0);
+	width:1%;
+}
+.firstLogTD_IN {
+	border-bottom-style:solid;
+	border-bottom-color:rgb(92,172,252);
+	padding-top:0px !important;
+	padding-bottom:0px !important;
+	font-size:20px;
+	font-weight:bold;
+	text-align:left;
+	color:rgb(0,128,255);
+	width: 1%;
+}
+.firstLogTD_SL {
+	border-bottom-style:solid;
+	border-bottom-color:rgb(92,172,252);
+	padding-top:0px !important;
+	padding-bottom:0px !important;
+	font-size:20px;
+	font-weight:bold;
+	text-align:left;
+	color:rgb(255,0,0);
+	width:1%;
+}
+.logBody {
+	border-bottom-style:solid;
+	border-bottom-color:rgb(92,172,252);
+	padding-top:3px !important;
+	padding-bottom:3px !important;
+	font-size:14px;
+}
+.tdLogSelect {
+	padding-top:6px !important;
+	padding-bottom:8px !important;
+	border-top:1px solid rgb(92,172,252);
+	border-bottom-color:rgb(92,172,252);
+	text-align:right;
+	font-size:14px;
+}
+#selectLog {
+	background:var(--bs-table-bg);
+	border-radius:14px;
+	padding-right:0px !important;
+	padding-left:12px !important;
+	padding-bottom:2px !important;
+	color:var(--bs-blue);
+	border-style:none;
+	border-color:rgb(0,102,255);
+}
+.trLog {
+	cursor:default;
+	font-family:monospace;
+	&:hover {
+		background:#e6f5ff;
+	}
+}
+#selectFileInput {
+	width:100%;
+	border-radius:19px;
+	border-width:1px;
+	border-color:var(--bs-blue);
+	height:30px;
+	text-align:center;
+	font-weight:bold;
+
+}
+#selectFileButton {
+	margin-right:5px;
+	padding-left:10px !important;
+	padding-right:10px !important;
+	padding-top:1px !important;
+	padding-bottom:1px !important;
+	height:30px;
+	border-radius:15px;
+	font-size:14px;
+	font-weight:bold;
+	background:var(--bs-green);
+	border-width:0px;
+	color:#ffffff;
+}
+#uploadFileButton {
+	margin-right:12px;
+	padding-left:10px !important;
+	padding-right:10px !important;
+	padding-top:1px !important;
+	padding-bottom:1px !important;
+	height:30px;
+	border-radius:15px;
+	font-size:14px;
+	font-weight:bold;
+	border-width:0px;
+	background: var(--bs-red);
+	color:#ffffff;
+}
+.tdSPIFFS1 {
+	padding-top:3px !important;
+	padding-bottom:3px !important;
+	border-bottom-color:rgb(92,172,252);
+	width:45%;
+	font-size:14px;
+}
+.tdSPIFFS2 {
+	padding-top:3px !important;
+	padding-bottom:3px !important;
+	border-bottom-color:rgb(92,172,252);
+	width:5%;
+	font-size:14px;
+}
+.tdSPIFFS3 {
+	padding-top:1px !important;
+	padding-bottom:1px !important;
+	border-top-width:1px;
+	border-top-color:rgb(92,172,252);
+	border-bottom-color:rgb(92,172,252);
+	width:50%;
+	font-size:18px;
+}
+.diskUsageTable {
+	padding:0px !important;
+	padding-top:0px !important;
+	padding-bottom:0px !important;
+}
+.duInfo {
+	padding-top:3px !important;
+	padding-bottom:3px !important;
+	text-align:left;
+	font-weight:bold;
+	color:rgb(103,103,103);
+	padding-left:10px !important;
+}
+.trSPIFFS {
+	cursor:default;
+	font-family:monospace;
+	&:hover {
+		background:#e6f5ff;
+	}
+}
