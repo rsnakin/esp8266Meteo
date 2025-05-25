@@ -108,7 +108,7 @@ esp8266Meteo/
 ## 🔒 Security Notes
 
 - The Telegram bot uses polling; no webhook is required.
-- Secure your bot token and Wi-Fi credentials inside secret.h (excluded from version control).
+- Secure your bot token and Wi-Fi credentials inside secret.h.
 - OTA support is available and can be password-protected (see ArduinoOTA options).
 
 ## 📄 License
