@@ -1,14 +1,14 @@
-var __VERSION = '1.21';
+var __VERSION = '1.22';
 
 var LOADING = false;
 var HOME_MODE = true;
 var LOGS_MODE = false;
-var SPIFFS_MODE = false;
+var FFS_MODE = false;
 
 var loadInterval = 1000;
 var homeInterval;
 var logsInterval;
-var spiffsInterval;
+var ffsInterval;
 var currentLOG = '/system.log';
 
 var dialogElem;
@@ -69,7 +69,7 @@ function ready() {
 		loadProgress = '&#9606;&#9606;&#9606' + loadProgress;
 	}
 	if(loadLevels[loadLevel]['type'] == 'startMain') {
-		ajax.get('/index_body.html?123', {}, function(data) {
+		ajax.get('/index_body.html', {}, function(data) {
 			document.body.innerHTML = data;
 			main();
 		});
@@ -117,24 +117,24 @@ function main() {
 			logsLoad(currentLOG, true);
 			return(true);
 		}
-		if(SPIFFS_MODE) {
-			if(spiffsInterval) {
-				clearInterval(spiffsInterval);
+		if(FFS_MODE) {
+			if(ffsInterval) {
+				clearInterval(ffsInterval);
 			}
-			loadSPIFFS(true);			
+			loadFFS(true);			
 		}
 	};
 	var homeButton = document.getElementById('__home');
 	homeButton.setAttribute("style", "color: rgb(255,0,0)");
 	var logsButton = document.getElementById('__logs');
-	var spiffsButton = document.getElementById('__spiffs');
+	var ffsButton = document.getElementById('__ffs');
 	homeButton.onclick = function(){
 		if(HOME_MODE || LOADING) { return(false); }
 		HOME_MODE = true;
 		LOGS_MODE = false;
-		SPIFFS_MODE = false;
+		FFS_MODE = false;
 		logsButton.removeAttribute("style");
-		spiffsButton.removeAttribute("style");
+		ffsButton.removeAttribute("style");
 		homeButton.setAttribute("style", "color: rgb(255,0,0)");
 		if(homeInterval) {
 			clearInterval(homeInterval);
@@ -142,8 +142,8 @@ function main() {
 		if(logsInterval) {
 			clearInterval(logsInterval);
 		}
-		if(spiffsInterval) {
-			clearInterval(spiffsInterval);
+		if(ffsInterval) {
+			clearInterval(ffsInterval);
 		}
 		homeFirstLoad();
 	};
@@ -151,10 +151,10 @@ function main() {
 		if(LOGS_MODE || LOADING) { return(false); }
 		HOME_MODE = false;
 		LOGS_MODE = true;
-		SPIFFS_MODE = false;
+		FFS_MODE = false;
 		currentLOG = '/system.log';
 		homeButton.removeAttribute("style");
-		spiffsButton.removeAttribute("style");
+		ffsButton.removeAttribute("style");
 		logsButton.setAttribute("style", "color: rgb(255,0,0)");
 		if(homeInterval) {
 			clearInterval(homeInterval);
@@ -162,29 +162,29 @@ function main() {
 		if(logsInterval) {
 			clearInterval(logsInterval);
 		}
-		if(spiffsInterval) {
-			clearInterval(spiffsInterval);
+		if(ffsInterval) {
+			clearInterval(ffsInterval);
 		}
 		logsLoad(currentLOG, true);
 	};
-	spiffsButton.onclick = function(){
-		if(SPIFFS_MODE || LOADING) { return(false); }
+	ffsButton.onclick = function(){
+		if(FFS_MODE || LOADING) { return(false); }
 		HOME_MODE = false;
 		LOGS_MODE = false;
-		SPIFFS_MODE = true;
+		FFS_MODE = true;
 		homeButton.removeAttribute("style");
 		logsButton.removeAttribute("style");
-		spiffsButton.setAttribute("style", "color: rgb(255,0,0)");
+		ffsButton.setAttribute("style", "color: rgb(255,0,0)");
 		if(homeInterval) {
 			clearInterval(homeInterval);
 		}
 		if(logsInterval) {
 			clearInterval(logsInterval);
 		}
-		if(spiffsInterval) {
-			clearInterval(spiffsInterval);
+		if(ffsInterval) {
+			clearInterval(ffsInterval);
 		}
-		loadSPIFFS(true);
+		loadFFS(true);
 	};
 	homeFirstLoad();
 }
@@ -461,10 +461,10 @@ function houseMouseOverListenerOn() {
 		}
 	}
 }
-function loadSPIFFS(startInterval) {
+function loadFFS(startInterval) {
 	loaderOn();
-	let spiffsHTML = '<table class="table"><tbody><tr>';
-	spiffsHTML += '<td style="text-align:right;width:50%;" colspan="2">'
+	let ffsHTML = '<table class="table"><tbody><tr>';
+	ffsHTML += '<td style="text-align:right;width:50%;" colspan="2">'
 	+ '<input type="text" id="selectFileInput" readonly placeholder="Select file"></td>'
 	+ '<td style="width: 50%;"><button class="btn btn-primary" type="button" id="selectFileButton">Select file</button>'
 	+ '<button class="btn btn-primary" type="button" id="uploadFileButton">Upload</button></td></tr>';
@@ -481,8 +481,8 @@ function loadSPIFFS(startInterval) {
 			let usedSpace = obj['UU'];
 			let usedPr = parseInt(usedSpace * 100 / totalSpace);
 			let freePr = 100 - usedPr;
-			spiffsHTML += '<tr><td class="diskUsageTable" colspan="3"><table class="table" style="margin-bottom:0px;"><tbody>';
-			spiffsHTML += '<tr><td style="padding:3px;text-align:center;font-weight:bold;background:rgb(33, 77, 252);'
+			ffsHTML += '<tr><td class="diskUsageTable" colspan="3"><table class="table" style="margin-bottom:0px;"><tbody>';
+			ffsHTML += '<tr><td style="padding:3px;text-align:center;font-weight:bold;background:rgb(33, 77, 252);'
 			+ 'color:rgb(255,255,255);" width="' + usedPr + '%">' + usedPr + '%</td>'
 			+ '<td style="padding:3px;text-align:center;font-weight:bold;color:rgb(255,255,255);background:rgb(17,190,2);"'
 			+ ' width="' + freePr + '%">' + freePr + '%</td></tr>'
@@ -504,17 +504,17 @@ function loadSPIFFS(startInterval) {
 							deleteFile = '&nbsp;<span class="d-inline-block" title="Delete" style="cursor:pointer;" '
 							+ 'onclick="removeFile(\''+ obj[i]['name'] + '\')">&#10060;</span>';
 						}
-						spiffsHTML += '<tr class="trSPIFFS"><td class="text-end tdSPIFFS1 text-uppercase">' + obj[i]['name'] + '</td>'
+						ffsHTML += '<tr class="trSPIFFS"><td class="text-end tdSPIFFS1 text-uppercase">' + obj[i]['name'] + '</td>'
                         + '<td class="text-end tdSPIFFS2">' + obj[i]['size'] + '</td>'
                         + '<td class="tdSPIFFS3"><a href="/' + obj[i]['name'] + '" title="Download" style="text-decoration:none;">'
 						+ '&#128190;</a>' + deleteFile + '</td></tr>';
 					}
 				}
-				spiffsHTML += '</tbody></table>';
-				spiffsHTML += '<div style="display:none;height:0px;width:0px;"><form method="POST" '
+				ffsHTML += '</tbody></table>';
+				ffsHTML += '<div style="display:none;height:0px;width:0px;"><form method="POST" '
 				+ 'action="/edit" id="uploadForm"><input type="file" id="upload_file"></form></div>';
 				let contentDIV = document.getElementById('content');
-				contentDIV.innerHTML = spiffsHTML;
+				contentDIV.innerHTML = ffsHTML;
 				let selectFileButton = document.getElementById("selectFileButton");
 				let uploadFileButton = document.getElementById("uploadFileButton");
 				let inputFile = document.getElementById("upload_file");
@@ -524,8 +524,8 @@ function loadSPIFFS(startInterval) {
 					inputFile.click();
 				};
 				inputFile.onchange = function(){
-					if(spiffsInterval) {
-						clearInterval(spiffsInterval);
+					if(ffsInterval) {
+						clearInterval(ffsInterval);
 					}
 					selectFileInput.value = inputFile.value.match(/[^\\/]*$/)[0];
 				};
@@ -546,14 +546,14 @@ function loadSPIFFS(startInterval) {
 					}).catch((error) => ("Something went wrong!", error));
 					uploadForm.reset();
 					selectFileInput.value = '';
-					if(spiffsInterval) {
-						clearInterval(spiffsInterval);
+					if(ffsInterval) {
+						clearInterval(ffsInterval);
 					}
-					loadSPIFFS(true);
+					loadFFS(true);
 				};
 				if(startInterval) {
-					spiffsInterval = setInterval(() => {
-						loadSPIFFS(false);
+					ffsInterval = setInterval(() => {
+						loadFFS(false);
 					}, 60000);
 				}
 				loaderOff();
@@ -576,7 +576,7 @@ function removeFile(fileName) {
 		loaderOn();
 		const formData = new FormData();
         formData.append('data', '/' + fileName);
-        fetch('/edit', {method: 'DELETE', body:formData }).then(() => loadSPIFFS(false));
+        fetch('/edit', {method: 'DELETE', body:formData }).then(() => loadFFS(false));
     }
 
 }
