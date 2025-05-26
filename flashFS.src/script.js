@@ -1,4 +1,4 @@
-var __VERSION = '1.22';
+var __VERSION = '1.23';
 
 var LOADING = false;
 var HOME_MODE = true;
@@ -350,7 +350,7 @@ function homeFirstLoad() {
 		time:'Time',
 		start_time:'Start time',
 		read_time:'Sensor read time',
-		read_counter:'Readig couner',
+		read_counter:'Reading counter',
 		msgs:'Messages'
 	};
     ajax.get('/all', {}, function(data) {
