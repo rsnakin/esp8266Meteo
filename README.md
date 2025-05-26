@@ -52,7 +52,7 @@ esp8266Meteo/
 │   ├── reload.png
 │   ├── loader.gif
 │   └── icon.png
-├── README.md            # This file
+└── README.md            # This file
 ```
 
 ## 🛠 Requirements
