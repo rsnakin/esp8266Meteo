@@ -81,6 +81,10 @@ esp8266Meteo/
   - `DFRobot_DHT11`
   - `FS` / `LittleFS`
 
+- [UniversalTelegramBot Library Docs](https://github.com/witnessmenow/Universal-Arduino-Telegram-Bot)
+- [ESP8266 LittleFS Docs](https://arduino-esp8266.readthedocs.io/en/latest/filesystem.html)
+
+
 ## ⚙️ Setup
 
 1. Open the file `esp8266Meteo/platformio.ini` in PlatformIO
