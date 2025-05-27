@@ -1,3 +1,27 @@
+/*
+MIT License
+
+Copyright (c) 2025 Richard Snakin
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
+
 #include <Adafruit_BMP085.h>
 #include <Arduino.h>
 #include <DFRobot_DHT11.h>
@@ -59,7 +83,7 @@ void readData() {
     if (sensor == DHT11 || firstTime) {
         DHT.read(DHT11_PIN);
         DHThumidityRealValue = DHT.humidity;
-        DHThumidity = (int)((float)DHThumidityRealValue * humidityCorrection);
+        DHThumidity = static_cast<int>(static_cast<float>(DHThumidityRealValue) * humidityCorrection);
         if (DHThumidity > 100) {
         DHThumidity = 100;
         }
@@ -446,13 +470,13 @@ void getAllData() {
     time_t ltime;
     time(&ltime);
     long int upTime;
-    upTime = (long int)ltime - (long int)startTime;
+    upTime = static_cast<long int>(ltime - startTime);
     int days;
-    days = (int)(upTime / (24 * 60 * 60));
+    days = static_cast<int>(upTime / (24 * 60 * 60));
     int hours;
-    hours = (int)((upTime - (days * 24 * 60 * 60)) / (60 * 60));
+    hours = static_cast<int>((upTime - (days * 24 * 60 * 60)) / (60 * 60));
     int mins;
-    mins = (int)((upTime - (days * 24 * 60 * 60) - hours * 60 * 60) / 60);
+    mins = static_cast<int>((upTime - (days * 24 * 60 * 60) - hours * 60 * 60) / 60);
     int secs;
     secs = upTime - (days * 24 * 60 * 60) - (hours * 60 * 60) - (mins * 60);
     ltime = ltime + 60 * 60 * 3;
@@ -474,7 +498,7 @@ void getAllData() {
         response, sizeof(response),
         "{\"DS18B20_t\":\"%+2.2f°C\",\"BMP180_t\":\"%+2.2f°C\",\"DHT11_t\":\"%+d°C\",\
     \"BMP180_p\":\"%2.2f mmHg (%2.3f kPa)\",\"DHT11_h\":\"%d%c (%d%c)\",\"version\":\"%s SerialOut:%s Build:%s\",\
-    \"ip\":\"%d.%d.%d.%d\",\"uptime\":\"%d days %02d:%02d:%02d\",\"time\":\"%s\",\"start_time\":\"%s\",\
+    \"ip\":\"%d.%d.%d.%d\",\"uptime\":\"%d day(s) %02d:%02d:%02d\",\"time\":\"%s\",\"start_time\":\"%s\",\
     \"read_time\":\"%s\",\"read_counter\":\"%lu [%s: %lu msec]\",\"msgs\":\"%lu\",\"volts\":\"%2.3fV\",\"freq\":\"%u MHz\"}",
         DS18B20Temp, BMP180Temp, DHTTemp, BMP180PressureMM,
         BMP180Pressure / 1000, DHThumidity, '%', DHThumidityRealValue, '%',
@@ -641,7 +665,7 @@ void createLog(const char *fileNamePath) {
         snprintf(
             printBuffer, sizeof(printBuffer),
             "{\"T\":\"%ld\",\"A\":\"SL\",\"D\":{\"LF\":\"%s\",\"B\":\"%s\"}}", 
-            (long int)logTime, fileNamePath, BUILD); // SL - Start Log
+            static_cast<long int>(logTime), fileNamePath, BUILD); // SL - Start Log
         fileToWrite.print(printBuffer);
         fileToWrite.close();
     }
@@ -662,7 +686,7 @@ void toLog(const char *fileNamePath, const char *action, char *data) {
         char printBuffer[512];
         time_t ltime;
         time(&ltime);
-        int timeOffset = (long int)((long int)ltime - (long int)logTime);
+        int timeOffset = static_cast<long int>(ltime - logTime);
         snprintf(printBuffer, sizeof(printBuffer), ",{\"T\":\"%d\",\"A\":\"%s\",\"D\":%s}", timeOffset,
                 action, data);
         fileToWrite.print(printBuffer);
