@@ -1,4 +1,4 @@
-# esp8266Meteo
+# 🌤️ esp8266Meteo — ESP8266-Based Wi-Fi Weather Station with Telegram and Web UI
 
 A PlatformIO-based ESP8266 project for collecting weather data, featuring a Telegram bot and a responsive web interface.
 
@@ -24,7 +24,7 @@ esp8266Meteo/
 │   ├── esp8266Meteo.cpp
 │   ├── esp8266Meteo.h
 │   └── secret.h
-├── data/                # Filesystem content (served via LittleFS)
+├── data/                     # Gzipped web files served by ESP8266 (LittleFS)
 │   ├── ajax.js.gz
 │   ├── bs.010.css.gz
 │   ├── bs.025.css.gz
@@ -37,7 +37,7 @@ esp8266Meteo/
 │   ├── reload.png
 │   ├── loader.gif
 │   └── icon.png
-├── flashFS.src/              # Source (uncompressed) files for web UI
+├── flashFS.src/              # Uncompressed sources for web UI (manually compressed via Perl script)
 │   ├── prepareDataLinux.pl   # Linux perl-script to compress and copy to /data
 │   ├── prepareDataWin.pl     # Windows perl-script to compress and copy to /data
 │   ├── ajax.js
@@ -54,6 +54,17 @@ esp8266Meteo/
 │   └── icon.png
 └── README.md            # This file
 ```
+
+## 📸 Screenshots Web UI
+
+### Main page
+![Main page](screenshots/204815.png)
+
+### Logs page
+![Logs page](screenshots/205015.png)
+
+### Flash file system page
+![Logs page](screenshots/205135.png)
 
 ## 🛠 Requirements
 
@@ -89,7 +100,12 @@ esp8266Meteo/
    ```bash
     pio run --target upload
    ```
-5. Upload the frontend assets to LittleFS:
+5. Use `flashFS.src/prepareDataLinux.pl` or `flashFS.src/prepareDataWin.pl`
+to compress `.html`, `.js`, and `.css` files into `.gz` format (if needed — the `data/`
+folder may already contain pre-compressed web UI files),
+and automatically copy them into the `/data/` directory for uploading to LittleFS.
+
+6. Upload the frontend assets to LittleFS:
    ```bash
     pio run --target uploadfs
    ```
