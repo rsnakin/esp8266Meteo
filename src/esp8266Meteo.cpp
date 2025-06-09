@@ -77,6 +77,7 @@ void readData() {
     if (sensor == BMP180 || firstTime) {
         BMP180Temp = bmp.readTemperature();
         BMP180Pressure = bmp.readPressure();
+        BMP180PressureMMPrev = BMP180PressureMM;
         BMP180PressureMM = BMP180Pressure * 0.00750063755419211;
     }
 
@@ -566,7 +567,6 @@ void handleNewMessages(int numNewMessages) {
             } else {
                 snprintf(pressureUpDown, sizeof(pressureUpDown), "%s", "&#x2193;");
             }
-            BMP180PressureMMPrev = BMP180PressureMM;
 
             snprintf(
                 buffer, sizeof(buffer),
