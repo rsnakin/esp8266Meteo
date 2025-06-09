@@ -566,6 +566,7 @@ void handleNewMessages(int numNewMessages) {
             } else {
                 snprintf(pressureUpDown, sizeof(pressureUpDown), "%s", "&#x2193;");
             }
+            BMP180PressureMMPrev = BMP180PressureMM;
 
             snprintf(
                 buffer, sizeof(buffer),

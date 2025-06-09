@@ -42,7 +42,7 @@ Connecting ESP8266EX NodeMCU 1.0 (ESP-12E Module) pins:
 ######################################################################################*/
 
 #define VERSION       "3.7.2"
-#define BUILD         "00261"
+#define BUILD         "00262"
 #define SERIAL_OUT    0 // 1 ON or 0 OFF
 
 #define SERVER_STATIC 1 // 1 ON or 0 OFF
