@@ -24,6 +24,14 @@ esp8266Meteo/
 │   ├── esp8266Meteo.cpp
 │   ├── esp8266Meteo.h
 │   └── secret.h
+├── lib/
+│   └── UniversalTelegramBot/ # Included UniversalTelegramBot by Brian Lough
+│       ├── src/
+│       │   ├── TelegramCertificate.h
+│       │   ├── UniversalTelegramBot.h
+│       │   └── UniversalTelegramBot.cpp
+│       ├── LICENSE.md
+│       └── README.md
 ├── data/                     # Gzipped web files served by ESP8266 (LittleFS)
 │   ├── ajax.js.gz
 │   ├── bs.010.css.gz
@@ -106,8 +114,8 @@ esp8266Meteo/
    ```
 5. Use `flashFS.src/prepareDataLinux.pl` or `flashFS.src/prepareDataWin.pl`
 to compress `.html`, `.js`, and `.css` files into `.gz` format (if needed — the `data/`
-folder may already contain pre-compressed web UI files),
-and automatically copy them into the `/data/` directory for uploading to LittleFS.
+folder may already contain pre-compressed files) and automatically copy them into the `/data/`
+directory for uploading to LittleFS.
 
 6. Upload the frontend assets to LittleFS:
    ```bash
@@ -128,12 +136,17 @@ and automatically copy them into the `/data/` directory for uploading to LittleF
 ## 🔒 Security Notes
 
 - The Telegram bot uses polling; no webhook is required.
-- Secure your bot token and Wi-Fi credentials inside secret.h.
+- Keep your bot token and Wi-Fi credentials secure inside `secret.h`.
 - OTA support is available and can be password-protected (see ArduinoOTA options).
 
 ## 📄 License
 
 MIT License.
+
+This project includes the UniversalTelegramBot library by Brian Lough (MIT License),
+located in `lib/UniversalTelegramBot/`.
+
+Full license text is provided in lib/UniversalTelegramBot/LICENSE.md.
 
 ## 👤 Author
 

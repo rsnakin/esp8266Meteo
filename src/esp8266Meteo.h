@@ -41,8 +41,8 @@ Connecting ESP8266EX NodeMCU 1.0 (ESP-12E Module) pins:
 
 ######################################################################################*/
 
-#define VERSION       "3.7.1"
-#define BUILD         "00259"
+#define VERSION       "3.7.2"
+#define BUILD         "00261"
 #define SERIAL_OUT    0 // 1 ON or 0 OFF
 
 #define SERVER_STATIC 1 // 1 ON or 0 OFF
@@ -75,8 +75,8 @@ float             DS18B20Temp;
 float             BMP180Temp;
 float             BMP180Pressure;
 float             BMP180PressureMM;
+float             BMP180PressureMMPrev = 748.0;
 float             humidityCorrection = 1.27;
-float             normalPressure = 748.0;
 bool              firstTime = true;
 byte              sensor = DS18B20;
 byte              gHumidity;
@@ -132,4 +132,4 @@ void   createLog(const char *fileNamePath);
 void   toLog(const char *fileNamePath, const char *action, char *data);
 int    getMaxLogNumber();
 void   rotateLogs();
-void   sendLocation(const String chatId, float latitude, float longitude);
+//void   sendLocation(const String chatId, float latitude, float longitude);

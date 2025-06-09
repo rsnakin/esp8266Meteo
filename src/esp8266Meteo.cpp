@@ -44,7 +44,7 @@ SOFTWARE.
 float getVoltage() {
     volts = ESP.getVcc() / 1000.0;
 #if SERIAL_OUT == 1
-    Serial.print("Volts: ");
+    Serial.print(F("Volts: "));
     Serial.println(volts);
 #endif
     return (volts);
@@ -69,7 +69,7 @@ void readData() {
         sensors.requestTemperatures();
         DS18B20Temp = sensors.getTempC(temperatureSensors[0]);
 #if SERIAL_OUT == 1
-        Serial.print("DS18B20Temp: ");
+        Serial.print(F("DS18B20Temp: "));
         Serial.println(DS18B20Temp);
 #endif
     }
@@ -93,22 +93,22 @@ void readData() {
 #if SERIAL_OUT == 1
     Serial.println("###############################");
     if (firstTime) {
-        Serial.println("SENSOR: ALL");
+        Serial.println(F("SENSOR: ALL"));
     } else {
-        Serial.print("SENSOR: ");
+        Serial.print(F("SENSOR: "));
         Serial.println(sensor);
     }
-    Serial.print("DS18B20Temp: ");
+    Serial.print(F("DS18B20Temp: "));
     Serial.println(DS18B20Temp);
-    Serial.print("BMP180Temp: ");
+    Serial.print(F("BMP180Temp: "));
     Serial.println(BMP180Temp);
-    Serial.print("BMP180Pressure: ");
+    Serial.print(F("BMP180Pressure: "));
     Serial.println(BMP180Pressure);
-    Serial.print("BMP180PressureMM: ");
+    Serial.print(F("BMP180PressureMM: "));
     Serial.println(BMP180PressureMM);
-    Serial.print("DHThumidity: ");
+    Serial.print(F("DHThumidity: "));
     Serial.println(DHThumidity);
-    Serial.print("DHTTemp: ");
+    Serial.print(F("DHTTemp: "));
     Serial.println(DHTTemp);
 #endif
 
@@ -153,9 +153,9 @@ void readData() {
     readDataCounter++;
 
 #if SERIAL_OUT == 1
-    Serial.print("Reading run time: ");
+    Serial.print(F("Reading run time: "));
     Serial.print(runTime);
-    Serial.println(" msec");
+    Serial.println(F(" msec"));
 #endif
 
     if (greenLed != 0) {
@@ -252,7 +252,7 @@ void diskUsage() {
             formatBytes(formatedUsedBytes, sizeof(formatedUsedBytes), usedBytes), totalBytes,
             usedBytes);
 #if SERIAL_OUT == 1
-    Serial.print("diskUsage: ");
+    Serial.print(F("diskUsage: "));
     Serial.println(buffer);
 #endif
 
@@ -297,7 +297,7 @@ void clearLogs() {
     while (LittleFS.exists(logName)) {
         output += "{\"LN\":\"" + String(logName) + "\"},";
 #if SERIAL_OUT == 1
-        Serial.print("Deleted log: ");
+        Serial.print(F("Deleted log: "));
         Serial.println(logName);
 #endif
         LittleFS.remove(logName);
@@ -383,12 +383,12 @@ void handleFileUpload() {
         if (!filename.startsWith("/"))
         filename = "/" + filename;
 #if SERIAL_OUT == 1
-        Serial.print("handleFileUpload Name: ");
+        Serial.print(F("handleFileUpload Name: "));
         Serial.println(filename);
 #endif
         fsUploadFile = LittleFS.open(filename, "w");
     } else if (upload.status == UPLOAD_FILE_WRITE) {
-        delay(0);
+        yield();
         if (fsUploadFile) fsUploadFile.write(upload.buf, upload.currentSize);
     } else if (upload.status == UPLOAD_FILE_END) {
         if (fsUploadFile) {
@@ -399,7 +399,7 @@ void handleFileUpload() {
                 upload.totalSize);
         toLog(SYS_LOG, "UF", data); // UF Uploaded File
 #if SERIAL_OUT == 1
-        Serial.print("handleFileUpload Size: ");
+        Serial.print(F("handleFileUpload Size: "));
         Serial.println(upload.totalSize);
 #endif
     }
@@ -560,9 +560,12 @@ void handleNewMessages(int numNewMessages) {
         if (bot.messages[i].text == "/meteo") {
 
             char pressureUpDown[9];
-            snprintf(pressureUpDown, sizeof(pressureUpDown), "%s", "&#x263a;");
-            if (BMP180PressureMM < (normalPressure - 5.0)) snprintf(pressureUpDown, sizeof(pressureUpDown), "%s", "&#x2193;");
-            if (BMP180PressureMM > (normalPressure + 5.0)) snprintf(pressureUpDown, sizeof(pressureUpDown), "%s", "&#x2191;");
+
+            if(BMP180PressureMMPrev < BMP180PressureMM) {
+                snprintf(pressureUpDown, sizeof(pressureUpDown), "%s", "&#x2191;");
+            } else {
+                snprintf(pressureUpDown, sizeof(pressureUpDown), "%s", "&#x2193;");
+            }
 
             snprintf(
                 buffer, sizeof(buffer),
@@ -583,12 +586,13 @@ void handleNewMessages(int numNewMessages) {
         }
         if(bot.messages[i].text == "/location") {
 #if SERIAL_OUT == 1
-            Serial.print("Long: ");
+            Serial.print(F("Long: "));
             Serial.println(LONGITUDE);
-            Serial.print("Lat: ");
+            Serial.print(F("Lat: "));
             Serial.println(LATITUDE);
 #endif
-            sendLocation(bot.messages[i].chat_id, LATITUDE, LONGITUDE);
+            //sendLocation(bot.messages[i].chat_id, LATITUDE, LONGITUDE);
+            bot.sendLocation(bot.messages[i].chat_id, LATITUDE, LONGITUDE, 0);
             char data[128];
             snprintf(data, sizeof(data), "{\"U\":\"%s\",\"RT\":\"%lu\",\"C\":\"l\"}", bot.messages[i].from_name.c_str(), millis() - startT);
             toLog(SYS_LOG, "SM", data);
@@ -617,7 +621,7 @@ void handleNewMessages(int numNewMessages) {
 }
 
 /*######################################################################################*/
-
+/*
 void sendLocation(const String chatId, float latitude, float longitude) {
     String url = String("https://api.telegram.org/bot") + BOT_TOKEN +
                 "/sendLocation?chat_id=" + chatId +
@@ -654,7 +658,7 @@ void sendLocation(const String chatId, float latitude, float longitude) {
 #endif
 
 }
-
+*/
 /*######################################################################################*/
 
 void createLog(const char *fileNamePath) {
@@ -702,7 +706,7 @@ int getMaxLogNumber() {
     char currentLog[24];
     snprintf(currentLog, sizeof(currentLog), TMPL_LOG, maxLogNumber);
 #if SERIAL_OUT == 1
-    Serial.print("getMaxLogNumber ");
+    Serial.print(F("getMaxLogNumber "));
     Serial.println(currentLog);
 #endif
     while (LittleFS.exists(currentLog)) {
@@ -723,7 +727,7 @@ void rotateLogs() {
     int maxLogNumber = getMaxLogNumber();
     int i;
 #if SERIAL_OUT == 1
-    Serial.print("maxLogNumber ");
+    Serial.print(F("maxLogNumber "));
     Serial.println(maxLogNumber);
 #endif
     for (i = maxLogNumber; i > 0; i--) {
@@ -733,7 +737,7 @@ void rotateLogs() {
         char nextLog[24];
         snprintf(nextLog, sizeof(nextLog), TMPL_LOG, i + 1);
 #if SERIAL_OUT == 1
-        Serial.print("currentLog: ");
+        Serial.print(F("currentLog: "));
         Serial.println(currentLog);
 #endif
         LittleFS.rename(currentLog, nextLog);
@@ -766,7 +770,7 @@ void setup() {
         }
         delay(1000);
     }
-    Serial.println("#### START ####");
+    Serial.println(F("#### START ####"));
 #endif
 
     digitalWrite(BLUE_PIN, LOW);
@@ -774,7 +778,7 @@ void setup() {
 
     if (!LittleFS.begin()) {
 #if SERIAL_OUT == 1
-        Serial.println("LittleFS mount failed!");
+        Serial.println(F("LittleFS mount failed!"));
         Serial.flush();
 #endif
         while(true) {
@@ -790,7 +794,7 @@ void setup() {
     }
 
 #if SERIAL_OUT == 1
-    Serial.println("#### LittleFS ####");
+    Serial.println(F("#### LittleFS ####"));
     Dir dir = LittleFS.openDir("/");
     while (dir.next()) {
         String fileName = dir.fileName();
@@ -838,7 +842,7 @@ void setup() {
     bot.updateToken(BOT_TOKEN);
 
 #if SERIAL_OUT == 1
-    Serial.print("Connecting to Wifi SSID ");
+    Serial.print(F("Connecting to Wifi SSID "));
     Serial.print(SSID);
 #endif
     WiFi.begin(SSID, PASSWORD);
@@ -884,15 +888,15 @@ void setup() {
     server.begin();
 
 #if SERIAL_OUT == 1
-    Serial.println("HTTP server started");
-    Serial.print("\nWiFi connected. IP address: ");
+    Serial.println(F("HTTP server started"));
+    Serial.print(F("\nWiFi connected. IP address: "));
     Serial.println(WiFi.localIP());
 #endif
 
     myIP = WiFi.localIP();
 
 #if SERIAL_OUT == 1
-    Serial.print("Retrieving time: ");
+    Serial.print(F("Retrieving time: "));
 #endif
     time_t now = time(nullptr);
     ledOnOff = false;
@@ -940,7 +944,7 @@ void loop() {
         int numNewMessages = bot.getUpdates(bot.last_message_received + 1);
         while (numNewMessages) {
 #if SERIAL_OUT == 1
-            Serial.println("got response");
+            Serial.println(F("got response"));
 #endif
             handleNewMessages(numNewMessages);
             numNewMessages = bot.getUpdates(bot.last_message_received + 1);
