@@ -41,13 +41,24 @@ SOFTWARE.
 
 /*######################################################################################*/
 
-float getVoltage() {
-    volts = ESP.getVcc() / 1000.0;
-#if SERIAL_OUT == 1
-    Serial.print(F("Volts: "));
-    Serial.println(volts);
-#endif
-    return (volts);
+float slidingAveragePressure(float newPressure) {
+    static float buffer[PRESSURE_BUFF_MAX_SIZE] = {0};
+    static int index = 0;
+    static int count = 0;
+    static float sum = 0.0;
+
+    if (count == PRESSURE_BUFF_MAX_SIZE) {
+        sum -= buffer[index];
+    } else {
+        count++;
+    }
+
+    buffer[index] = newPressure;
+    sum += newPressure;
+
+    index = (index + 1) % PRESSURE_BUFF_MAX_SIZE;
+
+    return sum / count;
 }
 
 /*######################################################################################*/
@@ -55,8 +66,9 @@ float getVoltage() {
 void readData() {
 
     unsigned long int nowMills = millis();
+    static bool firstTime = true;
 
-    if (((nowMills - lastReadDataTime) < readDataDelay) && !firstTime) return;
+    if (((nowMills - lastReadDataTime) < SENSORS_DELAY) && !firstTime) return;
 
     lastReadDataTime = millis();
     if (greenLed != 0) {
@@ -77,17 +89,15 @@ void readData() {
     if (sensor == BMP180 || firstTime) {
         BMP180Temp = bmp.readTemperature();
         BMP180Pressure = bmp.readPressure();
-        BMP180PressureMMPrev = BMP180PressureMM;
         BMP180PressureMM = BMP180Pressure * 0.00750063755419211;
+        slidingAveragePressureMM = slidingAveragePressure(BMP180PressureMM);
     }
 
     if (sensor == DHT11 || firstTime) {
         DHT.read(DHT11_PIN);
         DHThumidityRealValue = DHT.humidity;
         DHThumidity = static_cast<int>(static_cast<float>(DHThumidityRealValue) * humidityCorrection);
-        if (DHThumidity > 100) {
-        DHThumidity = 100;
-        }
+        if (DHThumidity > 100) DHThumidity = 100;
         DHTTemp = DHT.temperature;
     }
 
@@ -114,40 +124,40 @@ void readData() {
 #endif
 
     if (sensor == DS18B20) {
-        snprintf(sensorName, sizeof(sensorName), "DS18B20");
+        memCopy(sensorName, "DS18B20", sizeof(sensorName));
         sensor = BMP180;
         runTime = millis() - nowMills;
         if (runTime > max2log_DS18B20 && !firstTime) {
-        char data[128];
-        snprintf(data, sizeof(data), "{\"RT\":\"%lu\",\"SN\":\"%s\"}", runTime, sensorName);
-        toLog(SYS_LOG, "RS", data);
+            char data[128];
+            snprintf(data, sizeof(data), "{\"RT\":\"%lu\",\"SN\":\"%s\"}", runTime, sensorName);
+            toLog(SYS_LOG, "RS", data);
         }
     } else if (sensor == BMP180) {
-        snprintf(sensorName, sizeof(sensorName), "BMP180");
+        memCopy(sensorName, "BMP180", sizeof(sensorName));
         sensor = DHT11;
         runTime = millis() - nowMills;
         if (runTime > max2log_BMP180) {
-        char data[128];
-        snprintf(data, sizeof(data), "{\"RT\":\"%lu\",\"SN\":\"%s\"}", runTime, sensorName);
-        toLog(SYS_LOG, "RS", data);
+            char data[128];
+            snprintf(data, sizeof(data), "{\"RT\":\"%lu\",\"SN\":\"%s\"}", runTime, sensorName);
+            toLog(SYS_LOG, "RS", data);
         }
     } else if (sensor == DHT11) {
-        snprintf(sensorName, sizeof(sensorName), "DHT11");
+        memCopy(sensorName, "DHT11", sizeof(sensorName));
         sensor = DS18B20;
         runTime = millis() - nowMills;
         if (runTime > max2log_DHT11) {
-        char data[128];
-        snprintf(data, sizeof(data), "{\"RT\":\"%lu\",\"SN\":\"%s\"}", runTime, sensorName);
-        toLog(SYS_LOG, "RS", data);
+            char data[128];
+            snprintf(data, sizeof(data), "{\"RT\":\"%lu\",\"SN\":\"%s\"}", runTime, sensorName);
+            toLog(SYS_LOG, "RS", data);
         }
     }
 
-    if (firstTime) snprintf(sensorName, sizeof(sensorName), "ALL");
+    if (firstTime) memCopy(sensorName, "ALL", sizeof(sensorName));
 
     firstTime = false;
     time_t ltime;
     time(&ltime);
-    ltime = ltime + 3 * 60 * 60;
+    ltime = ltime + TIMEZONE_OFFSET_SEC;
     snprintf(lastReadTimeBuffer, sizeof(lastReadTimeBuffer), "%s", ctime(&ltime));
     lastReadTimeBuffer[strlen(lastReadTimeBuffer) - 1] = '\0';
 
@@ -228,6 +238,17 @@ void returnFail(const char *msg) {
     } else {
         server.send(500, "text/plain", "System error\r\n");
     }
+}
+
+/*######################################################################################*/
+
+void *memCopy(void *dest, const void *src, size_t n) {
+    unsigned char *d = (unsigned char *)dest;
+    const unsigned char *s = (const unsigned char *)src;
+    for (size_t i = 0; i < n; i++) {
+        d[i] = s[i];
+    }
+    return dest;
 }
 
 /*######################################################################################*/
@@ -473,20 +494,20 @@ void getAllData() {
     long int upTime;
     upTime = static_cast<long int>(ltime - startTime);
     int days;
-    days = static_cast<int>(upTime / (24 * 60 * 60));
+    days = static_cast<int>(upTime / 86400);
     int hours;
-    hours = static_cast<int>((upTime - (days * 24 * 60 * 60)) / (60 * 60));
+    hours = static_cast<int>((upTime - days * 86400) / 3600);
     int mins;
-    mins = static_cast<int>((upTime - (days * 24 * 60 * 60) - hours * 60 * 60) / 60);
+    mins = static_cast<int>((upTime - days * 86400 - hours * 3600) / 60);
     int secs;
-    secs = upTime - (days * 24 * 60 * 60) - (hours * 60 * 60) - (mins * 60);
-    ltime = ltime + 60 * 60 * 3;
+    secs = upTime - days * 86400 - hours * 3600 - mins * 60;
+    ltime = ltime + TIMEZONE_OFFSET_SEC;
 
     char curTime[32];
     snprintf(curTime, sizeof(curTime), "%s", ctime(&ltime));
     curTime[strlen(curTime) - 1] = '\0';
 
-    getVoltage();
+    float volts = ESP.getVcc() / 1000.0;
 
 #if SERIAL_OUT == 1
     char SerialOut[] = "ON";
@@ -542,7 +563,7 @@ void handleNewMessages(int numNewMessages) {
         if (bot.messages[i].text == "/info") {
             time_t ltime;
             time(&ltime);
-            ltime = ltime + 60 * 60 * 3;
+            ltime = ltime + TIMEZONE_OFFSET_SEC;
             snprintf(buffer, sizeof(buffer),
                     "<b>Version:</b> <code>%s</code>\n<b>IP</b>: "
                     "<code>%d.%d.%d.%d</code>\n<b>Time</b>: <code>%s</code>",
@@ -560,13 +581,10 @@ void handleNewMessages(int numNewMessages) {
         }
         if (bot.messages[i].text == "/meteo") {
 
-            char pressureUpDown[9];
+            char pressureUpDown[] = DOWN_ARROW;
 
-            if(BMP180PressureMMPrev < BMP180PressureMM) {
-                snprintf(pressureUpDown, sizeof(pressureUpDown), "%s", "&#x2191;");
-            } else {
-                snprintf(pressureUpDown, sizeof(pressureUpDown), "%s", "&#x2193;");
-            }
+            if(slidingAveragePressureMM < BMP180PressureMM) 
+                    memCopy(pressureUpDown, UP_ARROW, sizeof(pressureUpDown));
 
             snprintf(
                 buffer, sizeof(buffer),
@@ -592,7 +610,6 @@ void handleNewMessages(int numNewMessages) {
             Serial.print(F("Lat: "));
             Serial.println(LATITUDE);
 #endif
-            //sendLocation(bot.messages[i].chat_id, LATITUDE, LONGITUDE);
             bot.sendLocation(bot.messages[i].chat_id, LATITUDE, LONGITUDE, 0);
             char data[128];
             snprintf(data, sizeof(data), "{\"U\":\"%s\",\"RT\":\"%lu\",\"C\":\"l\"}", bot.messages[i].from_name.c_str(), millis() - startT);
@@ -601,19 +618,21 @@ void handleNewMessages(int numNewMessages) {
             return;
         }
 
-        snprintf(
-            buffer, sizeof(buffer),
+        memCopy(buffer,
             "<b>The following commands are available:</b>\n"
             "<code>/meteo</code> - show weather\n"
             "<code>/info</code> - show information about the bot\n"
-            "<code>/location</code> - show weather station location information\n"
+            "<code>/location</code> - show weather station location information\n",
+            sizeof(buffer)
         );
+
 #if SERIAL_OUT == 1
         Serial.println(buffer);
 #endif
         bot.sendMessage(bot.messages[i].chat_id, buffer, "HTML");
         char data[128];
-        snprintf(data, sizeof(data), "{\"U\":\"%s\",\"RT\":\"%lu\",\"C\":\"h\"}", bot.messages[i].from_name.c_str(), millis() - startT);
+        snprintf(data, sizeof(data), "{\"U\":\"%s\",\"RT\":\"%lu\",\"C\":\"h\"}",
+            bot.messages[i].from_name.c_str(), millis() - startT);
         toLog(SYS_LOG, "SM", data);
         digitalWrite(BLUE_PIN, LOW);
     }
@@ -621,45 +640,6 @@ void handleNewMessages(int numNewMessages) {
     return;
 }
 
-/*######################################################################################*/
-/*
-void sendLocation(const String chatId, float latitude, float longitude) {
-    String url = String("https://api.telegram.org/bot") + BOT_TOKEN +
-                "/sendLocation?chat_id=" + chatId +
-                "&latitude=" + String(latitude, 6) +
-                "&longitude=" + String(longitude, 6);
-
-#if SECURE_CLIENT == 1
-    netClient.setInsecure();
-#endif
-
-    if (!netClient.connect("api.telegram.org", 443)) {
-#if SERIAL_OUT == 1
-        Serial.println("Connection to Telegram API failed");
-#endif
-        return;
-    }
-
-    netClient.println("GET " + url + " HTTP/1.1");
-    netClient.println("Host: api.telegram.org");
-    netClient.println("Connection: close");
-    netClient.println();
-
-    while (netClient.connected()) {
-        String line = netClient.readStringUntil('\n');
-        if (line == "\r") break;
-    }
-    
-#if SERIAL_OUT == 1
-    Serial.println(netClient.readString());
-#endif
-
-#if SECURE_CLIENT == 1
-    netClient.setTrustAnchors(&cert);
-#endif
-
-}
-*/
 /*######################################################################################*/
 
 void createLog(const char *fileNamePath) {
@@ -682,11 +662,11 @@ void toLog(const char *fileNamePath, const char *action, char *data) {
     File fileToWrite = LittleFS.open(fileNamePath, "a");
     if (fileToWrite) {
         if (fileToWrite.size() > MAX_LOG_SIZE) {
-        fileToWrite.close();
-        rotateLogs();
-        createLog(SYS_LOG);
-        toLog(SYS_LOG, action, data);
-        return;
+            fileToWrite.close();
+            rotateLogs();
+            createLog(SYS_LOG);
+            toLog(SYS_LOG, action, data);
+            return;
         }
         char printBuffer[512];
         time_t ltime;
@@ -811,7 +791,7 @@ void setup() {
     bmp.begin();
 
     sensors.begin();
-    deviceCount = sensors.getDeviceCount();
+    uint8_t deviceCount = sensors.getDeviceCount();
 
     for (uint8_t index = 0; index < deviceCount; index++) {
         sensors.getAddress(temperatureSensors[index], index);
@@ -820,15 +800,15 @@ void setup() {
     ledOnOff = true;
     for (uint8_t t = 4; t > 0; t--) {
         if (ledOnOff) {
-        digitalWrite(GREEN_PIN, HIGH);
-        ledOnOff = false;
+            digitalWrite(GREEN_PIN, HIGH);
+            ledOnOff = false;
         } else {
-        digitalWrite(GREEN_PIN, LOW);
-        ledOnOff = true;
+            digitalWrite(GREEN_PIN, LOW);
+            ledOnOff = true;
         }
 #if SERIAL_OUT == 1
-    Serial.printf("[SETUP] SECOND WAIT %d...\n", t);
-    Serial.flush();
+        Serial.printf("[SETUP] SECOND WAIT %d...\n", t);
+        Serial.flush();
 #endif
         delay(1000);
     }
@@ -850,7 +830,7 @@ void setup() {
     ledOnOff = false;
     while (WiFi.status() != WL_CONNECTED) {
 #if SERIAL_OUT == 1
-    Serial.print(".");
+        Serial.print(".");
 #endif
         if (ledOnOff) {
             digitalWrite(BLUE_PIN, HIGH);
@@ -910,7 +890,7 @@ void setup() {
             ledOnOff = true;
         }
 #if SERIAL_OUT == 1
-    Serial.print(".");
+        Serial.print(".");
 #endif
         delay(200);
         now = time(nullptr);
@@ -923,7 +903,7 @@ void setup() {
     Serial.println(now);
 #endif
     startTime = now;
-    localStTime = startTime + 3 * 60 * 60;
+    localStTime = startTime + TIMEZONE_OFFSET_SEC;
     snprintf(startBuffer, sizeof(startBuffer), "%s", ctime(&localStTime));
     startBuffer[strlen(startBuffer) - 1] = '\0';
     digitalWrite(GREEN_PIN, HIGH);

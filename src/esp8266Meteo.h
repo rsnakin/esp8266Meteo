@@ -22,8 +22,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#pragma once
-
 /*######################################################################################
 
 Connecting ESP8266EX NodeMCU 1.0 (ESP-12E Module) pins:
@@ -41,14 +39,17 @@ Connecting ESP8266EX NodeMCU 1.0 (ESP-12E Module) pins:
 
 ######################################################################################*/
 
-#define VERSION       "3.7.2"
-#define BUILD         "00263"
+#pragma once
+
+#define VERSION       "3.7.3"
+#define BUILD         "00267"
 #define SERIAL_OUT    0 // 1 ON or 0 OFF
 
-#define SERVER_STATIC 1 // 1 ON or 0 OFF
+#define SERVER_STATIC 1 // 1 YES or 0 NO
 #define CACHE_MAX_AGE "max-age=86400"
+#define SECURE_CLIENT 0 // 1 YES or 0 NO
 
-#define SECURE_CLIENT 0 // 1 ON or 0 OFF
+#define TIMEZONE_OFFSET_SEC (3 * 3600) // Europe/Moscow
 
 #define BLUE_PIN      14       // GPIO14 - D5 LED BLUE
 #define GREEN_PIN     12       // GPIO12 - D6 LED GREEN
@@ -64,20 +65,20 @@ Connecting ESP8266EX NodeMCU 1.0 (ESP-12E Module) pins:
 #define BMP180        2
 #define DHT11         3
 #define BOT_MTBS      2000L
+#define SENSORS_DELAY 60000L
+#define PRESSURE_BUFF_MAX_SIZE 10
+#define UP_ARROW      "&#x2191;"
+#define DOWN_ARROW    "&#x2193;"
 
-
-uint8_t           deviceCount = 0;
 time_t            localStTime;
 time_t            logTime;
 time_t            startTime;
-float             volts;
 float             DS18B20Temp;
 float             BMP180Temp;
 float             BMP180Pressure;
-float             BMP180PressureMM = 748.0;
-float             BMP180PressureMMPrev;
+float             BMP180PressureMM;
+float             slidingAveragePressureMM;
 float             humidityCorrection = 1.27;
-bool              firstTime = true;
 byte              sensor = DS18B20;
 byte              gHumidity;
 int               greenLed;
@@ -87,7 +88,6 @@ int               DHTTemp;
 char              startBuffer[32];
 char              lastReadTimeBuffer[32];
 char              sensorName[10];
-unsigned long int readDataDelay = 60000;
 unsigned long int botLastTime;
 unsigned long int readDataCounter = 0;
 unsigned long int runTime;
@@ -112,10 +112,11 @@ X509List cert(TELEGRAM_CERTIFICATE_ROOT);
 UniversalTelegramBot bot(BOT_TOKEN, netClient);
 ADC_MODE(ADC_VCC);
 
-float  getVoltage();
+float  slidingAveragePressure(float newPressure);
 void   readData();
 String getContentType(String filename);
 char   *formatBytes(char *formatedBytes, size_t sizeFormatedBytes, size_t bytes);
+void   *memCopy(void *dest, const void *src, size_t n);
 void   returnFail(const char *msg);
 void   diskUsage();
 void   logsList();
@@ -132,4 +133,3 @@ void   createLog(const char *fileNamePath);
 void   toLog(const char *fileNamePath, const char *action, char *data);
 int    getMaxLogNumber();
 void   rotateLogs();
-//void   sendLocation(const String chatId, float latitude, float longitude);
