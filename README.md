@@ -106,7 +106,17 @@ esp8266Meteo/
    ```ini
       upload_port = <YourPort>  ; Example: COM3 or 192.168.x.x for OTA
    ```
-3. Replace the file `esp8266Meteo/src/secret.h` with your data:
+3. Replace the file `esp8266Meteo/src/esp8266Meteo.h` with your data:
+   ```cpp
+    #define TIMEZONE_OFFSET      3 // Set your time zone offset. For example: Europe/Moscow (UTC+3) -> offset = 3
+    #define NTP_SERVER          "pool.ntp.org" // Set the closest available NTP server for time synchronization
+   // Set thresholds for TrendTracker to filter out minor fluctuations and detect clear trends. 
+   // You can adjust them in the file flashFS.src/thresholds.dat.
+    #define TEMPERATURE_THRESHOLD 0.05f
+    #define PRESSURE_THRESHOLD    0.05f
+    #define HUMIDITY_THRESHOLD    0.06f
+   ```
+4. Replace the file `esp8266Meteo/src/secret.h` with your data:
    ```cpp
     #define SSID "YourWiFi"
     #define PASSWORD "YourPassword"
@@ -114,16 +124,16 @@ esp8266Meteo/
     #define LATITUDE latitude_of_your_weather_station     // For example 51.500833
     #define LONGITUDE longitude_of_your_weather_station   // For example -0.124444
    ```
-4. Upload the firmware to the board:
+5. Upload the firmware to the board:
    ```bash
     pio run --target upload
    ```
-5. Use `flashFS.src/prepareDataLinux.pl` or `flashFS.src/prepareDataWin.pl`
+6. Use `flashFS.src/prepareDataLinux.pl` or `flashFS.src/prepareDataWin.pl`
 to compress `.html`, `.js`, and `.css` files into `.gz` format (if needed — the `data/`
 folder may already contain pre-compressed files) and automatically copy them into the `/data/`
 directory for uploading to LittleFS.
 
-6. Upload the frontend assets to LittleFS:
+7. Upload the frontend assets to LittleFS:
    ```bash
     pio run --target uploadfs
    ```

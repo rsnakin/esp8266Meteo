@@ -50,9 +50,9 @@ Connecting ESP8266EX NodeMCU 1.0 (ESP-12E Module) pins:
 
 #define SECURE_CLIENT 0 // 1 YES or 0 NO
 
-#define TIMEZONE_OFFSET      3 // Set your time zone. For example: Europe/Moscow (UTC+3) -> 3
+#define TIMEZONE_OFFSET      3 // Set your time zone offset. For example: Europe/Moscow (UTC+3) -> offset = 3
 #define TIMEZONE_OFFSET_SEC (TIMEZONE_OFFSET * 3600)
-#define NTP_SERVER          "pool.ntp.org"
+#define NTP_SERVER          "pool.ntp.org" // Set the closest available NTP server for time synchronization
 
 #define BLUE_PIN      14       // GPIO14 - D5 LED BLUE
 #define GREEN_PIN     12       // GPIO12 - D6 LED GREEN
@@ -64,7 +64,8 @@ Connecting ESP8266EX NodeMCU 1.0 (ESP-12E Module) pins:
 #define TMPL_LOG      "/system.%03d.log"
 #define MAX_LOG_SIZE  5120
 
-// Thresholds for TrendTracker
+// Set thresholds for TrendTracker to filter out minor fluctuations and detect clear trends. 
+// You can adjust them in the file flashFS.src/thresholds.dat.
 #define TEMPERATURE_THRESHOLD 0.05f
 #define PRESSURE_THRESHOLD    0.05f
 #define HUMIDITY_THRESHOLD    0.06f
