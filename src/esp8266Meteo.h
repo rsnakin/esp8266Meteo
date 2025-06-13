@@ -41,15 +41,18 @@ Connecting ESP8266EX NodeMCU 1.0 (ESP-12E Module) pins:
 
 #pragma once
 
-#define VERSION       "3.7.3"
-#define BUILD         "00267"
+#define VERSION       "3.7.5"
+#define BUILD         "00292"
 #define SERIAL_OUT    0 // 1 ON or 0 OFF
 
 #define SERVER_STATIC 1 // 1 YES or 0 NO
 #define CACHE_MAX_AGE "max-age=86400"
+
 #define SECURE_CLIENT 0 // 1 YES or 0 NO
 
-#define TIMEZONE_OFFSET_SEC (3 * 3600) // Europe/Moscow
+#define TIMEZONE_OFFSET      3 // Set your time zone. For example: Europe/Moscow (UTC+3) -> 3
+#define TIMEZONE_OFFSET_SEC (TIMEZONE_OFFSET * 3600)
+#define NTP_SERVER          "pool.ntp.org"
 
 #define BLUE_PIN      14       // GPIO14 - D5 LED BLUE
 #define GREEN_PIN     12       // GPIO12 - D6 LED GREEN
@@ -61,58 +64,24 @@ Connecting ESP8266EX NodeMCU 1.0 (ESP-12E Module) pins:
 #define TMPL_LOG      "/system.%03d.log"
 #define MAX_LOG_SIZE  5120
 
+// Thresholds for TrendTracker
+#define TEMPERATURE_THRESHOLD 0.05f
+#define PRESSURE_THRESHOLD    0.05f
+#define HUMIDITY_THRESHOLD    0.06f
+#define THRESHOLD_DATA        "/thresholds.dat"
+
+#define HUMIDITY_CORRECTION 1.27f
+
+#define MAX2LOG_DS18B20 510L
+#define MAX2LOG_BMP180   53L
+#define MAX2LOG_DHT11   233L
+
 #define DS18B20       1
 #define BMP180        2
 #define DHT11         3
 #define BOT_MTBS      2000L
 #define SENSORS_DELAY 60000L
-#define PRESSURE_BUFF_MAX_SIZE 10
-#define UP_ARROW      "&#x2191;"
-#define DOWN_ARROW    "&#x2193;"
 
-time_t            localStTime;
-time_t            logTime;
-time_t            startTime;
-float             DS18B20Temp;
-float             BMP180Temp;
-float             BMP180Pressure;
-float             BMP180PressureMM;
-float             slidingAveragePressureMM;
-float             humidityCorrection = 1.27;
-byte              sensor = DS18B20;
-byte              gHumidity;
-int               greenLed;
-int               DHThumidity;
-int               DHThumidityRealValue;
-int               DHTTemp;
-char              startBuffer[32];
-char              lastReadTimeBuffer[32];
-char              sensorName[10];
-unsigned long int botLastTime;
-unsigned long int readDataCounter = 0;
-unsigned long int runTime;
-unsigned long int lastReadDataTime = 0;
-unsigned long int max2log_DS18B20 = 508;
-unsigned long int max2log_BMP180 = 46;
-unsigned long int max2log_DHT11 = 227;
-unsigned long int userMessages = 0;
-File              fsUploadFile;
-WiFiClientSecure  netClient;
-DFRobot_DHT11     DHT;
-IPAddress         myIP;
-Adafruit_BMP085   bmp;
-DeviceAddress     temperatureSensors[3];
-
-OneWire oneWire(ONE_WIRE_BUS);
-DallasTemperature sensors(&oneWire);
-ESP8266WebServer server(80);
-#if SECURE_CLIENT == YES
-X509List cert(TELEGRAM_CERTIFICATE_ROOT);
-#endif
-UniversalTelegramBot bot(BOT_TOKEN, netClient);
-ADC_MODE(ADC_VCC);
-
-float  slidingAveragePressure(float newPressure);
 void   readData();
 String getContentType(String filename);
 char   *formatBytes(char *formatedBytes, size_t sizeFormatedBytes, size_t bytes);
@@ -123,6 +92,7 @@ void   logsList();
 void   clearLogs();
 void   getLog();
 bool   handleFileRead(String path);
+void   setThresholds();
 void   handleFileUpload();
 void   handleFileDelete();
 void   handleFileList();

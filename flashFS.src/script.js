@@ -22,7 +22,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-var __VERSION = '1.23';
+var __VERSION = '1.24';
 
 var LOADING = false;
 var HOME_MODE = true;
@@ -118,7 +118,7 @@ function main() {
 	let contentDIV = document.getElementById('content');
 	let tdHeader = document.getElementById('tdHeader');
 	let contentDIVHeight = window.innerHeight - tdHeader.offsetHeight - 2;
-	contentDIVStyle = 'overflow:auto;height:' + contentDIVHeight + 'px;';
+	let contentDIVStyle = 'overflow:auto;height:' + contentDIVHeight + 'px;';
 	contentDIV.setAttribute("style", contentDIVStyle);
 	var reloadButton = document.getElementById('reload');
 	reloadButton.onclick = function(){
@@ -218,7 +218,7 @@ function showDialog(msg) {
 	dialogElem.showModal();
 }
 function __loadData(dataURL, dataId, rel, type) {
-	var cssId = dataId;
+	// var cssId = dataId;
     var head  = document.getElementsByTagName('head')[0];
     var link  = document.createElement('link');
     link.id   = dataId;
@@ -322,6 +322,10 @@ function logsLoad(log, startInterval) {
 					logHTML += '<td class="logBody">Readed sensor</td>';
 					logHTML += '<td class="logBody">Sensor: <font color="#2192fc">' + obj[i]['D']['SN'] + '</font></td>';
 					logHTML += '<td class="logBody">Run time: <font color="#2192fc">' + obj[i]['D']['RT'] + '</font></td>';
+				}
+				if(obj[i]['A'] == 'IN') {
+					logHTML += '<td class="logBody">Information</td>';
+					logHTML += '<td class="logBody" colspan="2"><font color="#2192fc">' + obj[i]['D']['M'] + '</font></td>';
 				}
 				logHTML += '</tr>';
 			}
@@ -491,7 +495,8 @@ function loadFFS(startInterval) {
 	ffsHTML += '<td style="text-align:right;width:50%;" colspan="2">'
 	+ '<input type="text" id="selectFileInput" readonly placeholder="Select file"></td>'
 	+ '<td style="width: 50%;"><button class="btn btn-primary" type="button" id="selectFileButton">Select file</button>'
-	+ '<button class="btn btn-primary" type="button" id="uploadFileButton">Upload</button></td></tr>';
+	+ '<button class="btn btn-primary" type="button" id="uploadFileButton">Upload</button>'
+	+ '</td></tr>';
 	ajax.get('/disk_usage', {}, function(data) {
 		let obj;
 		try {

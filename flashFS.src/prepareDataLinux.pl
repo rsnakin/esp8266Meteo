@@ -48,6 +48,7 @@ my @plain_files = qw(
 	reload.png
 	loader.gif
 	icon.png
+	thresholds.dat
 );
 
 my $outDir = "data";

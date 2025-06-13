@@ -37,28 +37,117 @@ SOFTWARE.
 #include <ctime>
 #include <ArduinoOTA.h>
 #include "secret.h"
+#include "TrendTracker.h"
 #include "esp8266Meteo.h"
+
+time_t            localStTime;
+time_t            logTime;
+time_t            startTime;
+float             DS18B20Temp;
+float             BMP180Temp;
+float             BMP180Pressure;
+float             BMP180PressureMM;
+byte              sensor = DS18B20;
+byte              gHumidity;
+int               greenLed;
+int               DHThumidity;
+int               DHThumidityRealValue;
+int               DHTTemp;
+char              startBuffer[32];
+char              lastReadTimeBuffer[32];
+char              sensorName[10];
+unsigned long int botLastTime;
+unsigned long int readDataCounter = 0;
+unsigned long int runTime;
+unsigned long int lastReadDataTime = 0;
+unsigned long int userMessages = 0;
+File              fsUploadFile;
+WiFiClientSecure  netClient;
+DFRobot_DHT11     DHT;
+IPAddress         myIP;
+Adafruit_BMP085   bmp;
+DeviceAddress     temperatureSensors[3];
+TrendTracker      trendTemperature;
+TrendTracker      trendPressure;
+TrendTracker      trendHumidity;
+
+OneWire oneWire(ONE_WIRE_BUS);
+DallasTemperature sensors(&oneWire);
+ESP8266WebServer server(80);
+#if SECURE_CLIENT == 1
+X509List cert(TELEGRAM_CERTIFICATE_ROOT);
+#endif
+UniversalTelegramBot bot(BOT_TOKEN, netClient);
+ADC_MODE(ADC_VCC);
 
 /*######################################################################################*/
 
-float slidingAveragePressure(float newPressure) {
-    static float buffer[PRESSURE_BUFF_MAX_SIZE] = {0};
-    static int index = 0;
-    static int count = 0;
-    static float sum = 0.0;
+void setThresholds() {
 
-    if (count == PRESSURE_BUFF_MAX_SIZE) {
-        sum -= buffer[index];
-    } else {
-        count++;
+    static float tTemperature = 0;
+    static float tPressure = 0;
+    static float tHumidity = 0;
+
+    File tFile = LittleFS.open(THRESHOLD_DATA, "r");
+
+    if (!tFile) {
+        trendTemperature.threshold = TEMPERATURE_THRESHOLD;
+        trendPressure.threshold = PRESSURE_THRESHOLD;
+        trendHumidity.threshold = HUMIDITY_THRESHOLD;
+        if(
+            trendTemperature.threshold != tTemperature || 
+            trendPressure.threshold != tPressure ||
+            trendHumidity.threshold != tHumidity
+        ) {
+            char data[128];
+            snprintf(data, sizeof(data), "{\"M\":\"Set default thresholds: T=%.3f, P=%.3f, H=%.3f\"}",
+                trendTemperature.threshold, trendPressure.threshold, trendHumidity.threshold
+            );
+        }
+        return;
     }
 
-    buffer[index] = newPressure;
-    sum += newPressure;
+    auto parseLine = [](const char *&p) -> float {
+        while (*p == '\r' || *p == '\n') ++p;
 
-    index = (index + 1) % PRESSURE_BUFF_MAX_SIZE;
+        char buf[32];
+        size_t i = 0;
+        while (*p && *p != '\n' && *p != '\r' && i < sizeof(buf) - 1)
+            buf[i++] = *p++;
+        buf[i] = '\0';
 
-    return sum / count;
+        while (*p == '\n' || *p == '\r') ++p;
+        return strtof(buf, nullptr);
+    };
+    
+    char buffer[32];
+    size_t fileSize = tFile.size();
+
+    tFile.readBytes(buffer, fileSize);
+    buffer[fileSize] = '\0';
+    const char *ptr = buffer;
+
+    trendTemperature.threshold = *ptr ? parseLine(ptr) : TEMPERATURE_THRESHOLD;
+    trendPressure.threshold    = *ptr ? parseLine(ptr) : PRESSURE_THRESHOLD;
+    trendHumidity.threshold    = *ptr ? parseLine(ptr) : HUMIDITY_THRESHOLD;
+
+    if(
+        trendTemperature.threshold != tTemperature || 
+        trendPressure.threshold != tPressure ||
+        trendHumidity.threshold != tHumidity
+    ) {
+        tTemperature = trendTemperature.threshold;
+        tPressure = trendPressure.threshold;
+        tHumidity = trendHumidity.threshold;
+        char data[128];
+        snprintf(data, sizeof(data), "{\"M\":\"Got new thresholds: T=%.3f, P=%.3f, H=%.3f\"}",
+            trendTemperature.threshold, trendPressure.threshold, trendHumidity.threshold
+        );
+        toLog(SYS_LOG, "IN", data);
+    }
+
+    tFile.close();
+    delay(0);
 }
 
 /*######################################################################################*/
@@ -70,6 +159,8 @@ void readData() {
 
     if (((nowMills - lastReadDataTime) < SENSORS_DELAY) && !firstTime) return;
 
+    setThresholds();
+    
     lastReadDataTime = millis();
     if (greenLed != 0) {
         digitalWrite(BLUE_PIN, HIGH);
@@ -80,6 +171,7 @@ void readData() {
     if (sensor == DS18B20 || firstTime) {
         sensors.requestTemperatures();
         DS18B20Temp = sensors.getTempC(temperatureSensors[0]);
+        TrendTracker_add(&trendTemperature, DS18B20Temp);
 #if SERIAL_OUT == 1
         Serial.print(F("DS18B20Temp: "));
         Serial.println(DS18B20Temp);
@@ -90,19 +182,20 @@ void readData() {
         BMP180Temp = bmp.readTemperature();
         BMP180Pressure = bmp.readPressure();
         BMP180PressureMM = BMP180Pressure * 0.00750063755419211;
-        slidingAveragePressureMM = slidingAveragePressure(BMP180PressureMM);
+        TrendTracker_add(&trendPressure, BMP180Pressure);
     }
 
     if (sensor == DHT11 || firstTime) {
         DHT.read(DHT11_PIN);
         DHThumidityRealValue = DHT.humidity;
-        DHThumidity = static_cast<int>(static_cast<float>(DHThumidityRealValue) * humidityCorrection);
+        DHThumidity = static_cast<int>(DHThumidityRealValue * HUMIDITY_CORRECTION);
         if (DHThumidity > 100) DHThumidity = 100;
+        TrendTracker_add(&trendHumidity, static_cast<float>(DHThumidityRealValue));
         DHTTemp = DHT.temperature;
     }
 
 #if SERIAL_OUT == 1
-    Serial.println("###############################");
+    Serial.println(F("###############################"));
     if (firstTime) {
         Serial.println(F("SENSOR: ALL"));
     } else {
@@ -127,7 +220,7 @@ void readData() {
         memCopy(sensorName, "DS18B20", sizeof(sensorName));
         sensor = BMP180;
         runTime = millis() - nowMills;
-        if (runTime > max2log_DS18B20 && !firstTime) {
+        if (runTime > MAX2LOG_DS18B20 && !firstTime) {
             char data[128];
             snprintf(data, sizeof(data), "{\"RT\":\"%lu\",\"SN\":\"%s\"}", runTime, sensorName);
             toLog(SYS_LOG, "RS", data);
@@ -136,7 +229,7 @@ void readData() {
         memCopy(sensorName, "BMP180", sizeof(sensorName));
         sensor = DHT11;
         runTime = millis() - nowMills;
-        if (runTime > max2log_BMP180) {
+        if (runTime > MAX2LOG_BMP180) {
             char data[128];
             snprintf(data, sizeof(data), "{\"RT\":\"%lu\",\"SN\":\"%s\"}", runTime, sensorName);
             toLog(SYS_LOG, "RS", data);
@@ -145,7 +238,7 @@ void readData() {
         memCopy(sensorName, "DHT11", sizeof(sensorName));
         sensor = DS18B20;
         runTime = millis() - nowMills;
-        if (runTime > max2log_DHT11) {
+        if (runTime > MAX2LOG_DHT11) {
             char data[128];
             snprintf(data, sizeof(data), "{\"RT\":\"%lu\",\"SN\":\"%s\"}", runTime, sensorName);
             toLog(SYS_LOG, "RS", data);
@@ -174,6 +267,8 @@ void readData() {
     } else {
         digitalWrite(GREEN_PIN, LOW);
     }
+
+    delay(0);
 
     return;
 }
@@ -491,16 +586,15 @@ void getAllData() {
     digitalWrite(BLUE_PIN, HIGH);
     time_t ltime;
     time(&ltime);
-    long int upTime;
-    upTime = static_cast<long int>(ltime - startTime);
-    int days;
-    days = static_cast<int>(upTime / 86400);
-    int hours;
-    hours = static_cast<int>((upTime - days * 86400) / 3600);
-    int mins;
-    mins = static_cast<int>((upTime - days * 86400 - hours * 3600) / 60);
-    int secs;
-    secs = upTime - days * 86400 - hours * 3600 - mins * 60;
+    long int upTime = static_cast<long int>(ltime - startTime);
+
+    int days  = upTime / 86400;
+    int rem   = upTime % 86400;
+    int hours = rem / 3600;
+    rem       = rem % 3600;
+    int mins  = rem / 60;
+    int secs  = rem % 60;
+
     ltime = ltime + TIMEZONE_OFFSET_SEC;
 
     char curTime[32];
@@ -518,12 +612,13 @@ void getAllData() {
     char response[1024];
     snprintf(
         response, sizeof(response),
-        "{\"DS18B20_t\":\"%+2.2f°C\",\"BMP180_t\":\"%+2.2f°C\",\"DHT11_t\":\"%+d°C\",\
-    \"BMP180_p\":\"%2.2f mmHg (%2.3f kPa)\",\"DHT11_h\":\"%d%c (%d%c)\",\"version\":\"%s SerialOut:%s Build:%s\",\
+    "{\"DS18B20_t\":\"%s %+2.2f°C\",\"BMP180_t\":\"%+2.2f°C\",\"DHT11_t\":\"%+d°C\",\
+    \"BMP180_p\":\"%s %2.2f mmHg (%2.3f kPa)\",\"DHT11_h\":\"%s %d%% (%d%%)\",\"version\":\"%s SerialOut:%s Build:%s\",\
     \"ip\":\"%d.%d.%d.%d\",\"uptime\":\"%d day(s) %02d:%02d:%02d\",\"time\":\"%s\",\"start_time\":\"%s\",\
     \"read_time\":\"%s\",\"read_counter\":\"%lu [%s: %lu msec]\",\"msgs\":\"%lu\",\"volts\":\"%2.3fV\",\"freq\":\"%u MHz\"}",
-        DS18B20Temp, BMP180Temp, DHTTemp, BMP180PressureMM,
-        BMP180Pressure / 1000, DHThumidity, '%', DHThumidityRealValue, '%',
+        TrendTracker_getArrow(&trendTemperature), DS18B20Temp, BMP180Temp, DHTTemp, 
+        TrendTracker_getArrow(&trendPressure), BMP180PressureMM,
+        BMP180Pressure / 1000, TrendTracker_getArrow(&trendHumidity), DHThumidity, DHThumidityRealValue,
         VERSION, SerialOut, BUILD, myIP[0], myIP[1], myIP[2], myIP[3], days,
         hours, mins, secs, curTime, startBuffer, lastReadTimeBuffer,
         readDataCounter, sensorName, runTime, userMessages, volts, ESP.getCpuFreqMHz());
@@ -580,19 +675,15 @@ void handleNewMessages(int numNewMessages) {
             return;
         }
         if (bot.messages[i].text == "/meteo") {
-
-            char pressureUpDown[] = DOWN_ARROW;
-
-            if(slidingAveragePressureMM < BMP180PressureMM) 
-                    memCopy(pressureUpDown, UP_ARROW, sizeof(pressureUpDown));
-
             snprintf(
                 buffer, sizeof(buffer),
-                "Hello, <b>%s</b>,\n<b>Temperature:</b> "
-                "<code>%+2.2f°C</code>\n<b>Pressure:</b> <b>%s</b> <code>%2.2f mmHg "
-                "(%2.3f kPa)</code>\n<b>Humidity:</b> <code>%d%c</code>",
-                bot.messages[i].from_name.c_str(), DS18B20Temp, pressureUpDown,
-                BMP180PressureMM, BMP180Pressure / 1000, DHThumidity, '%');
+                "Hello, <b>%s</b>!\n<b>Temperature: %s</b> "
+                "<code>%+2.2f°C</code>\n<b>Pressure: %s</b> <code>%2.2f mmHg "
+                "(%2.3f kPa)</code>\n<b>Humidity: %s</b> <code>%d%%</code>",
+                bot.messages[i].from_name.c_str(),
+                TrendTracker_getArrow(&trendTemperature), DS18B20Temp,
+                TrendTracker_getArrow(&trendPressure), BMP180PressureMM, BMP180Pressure / 1000,
+                TrendTracker_getArrow(&trendHumidity), DHThumidity);
 #if SERIAL_OUT == 1
             Serial.println(buffer);
 #endif
@@ -727,6 +818,9 @@ void rotateLogs() {
     char currentLog1[24];
     snprintf(currentLog1, sizeof(currentLog1), TMPL_LOG, 1);
     LittleFS.rename(SYS_LOG, currentLog1);
+#if SERIAL_OUT == 1
+    Serial.println(F("rotateLogs finished..."));
+#endif
 }
 
 /*######################################################################################*/
@@ -814,7 +908,7 @@ void setup() {
     }
 
     digitalWrite(GREEN_PIN, LOW);
-    configTime(0, 0, "pool.ntp.org"); // <- pool.ntp.org
+    configTime(0, 0, NTP_SERVER);
 #if SECURE_CLIENT == 1
     netClient.setTrustAnchors(&cert);
 #else
@@ -911,13 +1005,18 @@ void setup() {
 
     rotateLogs();
     createLog(SYS_LOG);
+
+    TrendTracker_init(&trendTemperature, 10, TEMPERATURE_THRESHOLD);
+    TrendTracker_init(&trendPressure, 10, PRESSURE_THRESHOLD);
+    TrendTracker_init(&trendHumidity, 10, HUMIDITY_THRESHOLD);
+
+    setThresholds();
 }
 
 /*######################################################################################*/
 
 void loop() {
 
-    ArduinoOTA.handle();
     readData();
     server.handleClient();
     MDNS.update();
@@ -936,4 +1035,6 @@ void loop() {
         digitalWrite(GREEN_PIN, LOW);
         greenLed = 0;
     }
+    ArduinoOTA.handle();
+
 }
