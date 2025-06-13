@@ -25,6 +25,10 @@ esp8266Meteo/
 │   ├── esp8266Meteo.h
 │   └── secret.h
 ├── lib/
+│   ├── TrendTracker/         # TrendTracker detects trends in float data using linear regression with a ring buffer.
+│   │   └── src/
+│   │       ├── TrendTracker.h
+│   │       └── TrendTracker.c
 │   └── UniversalTelegramBot/ # Included UniversalTelegramBot by Brian Lough
 │       ├── src/
 │       │   ├── TelegramCertificate.h
@@ -44,6 +48,7 @@ esp8266Meteo/
 │   ├── u.02.css.gz
 │   ├── reload.png
 │   ├── loader.gif
+│   ├── thresholds.dat
 │   └── icon.png
 ├── flashFS.src/              # Uncompressed sources for web UI (manually compressed via Perl script)
 │   ├── prepareDataLinux.pl   # Linux perl-script to compress and copy to /data
@@ -59,6 +64,7 @@ esp8266Meteo/
 │   ├── u.02.css
 │   ├── reload.png
 │   ├── loader.gif
+│   ├── thresholds.dat
 │   └── icon.png
 └── README.md            # This file
 ```
