@@ -26,8 +26,8 @@ SOFTWARE.
 #include <Arduino.h>
 #include <DFRobot_DHT11.h>
 #include <DallasTemperature.h>
-#include <ESP8266WebServer.h>
 #include <ESP8266WiFi.h>
+#include <ESPAsyncWebServer.h>
 #include <ESP8266mDNS.h>
 #include <FS.h>
 #include <LittleFS.h>
@@ -61,7 +61,6 @@ unsigned long int readDataCounter = 0;
 unsigned long int runTime;
 unsigned long int lastReadDataTime = 0;
 unsigned long int userMessages = 0;
-File              fsUploadFile;
 WiFiClientSecure  netClient;
 DFRobot_DHT11     DHT;
 IPAddress         myIP;
@@ -73,7 +72,7 @@ TrendTracker      trendHumidity;
 
 OneWire oneWire(ONE_WIRE_BUS);
 DallasTemperature sensors(&oneWire);
-ESP8266WebServer server(80);
+AsyncWebServer server(80);
 #if SECURE_CLIENT == 1
 X509List cert(TELEGRAM_CERTIFICATE_ROOT);
 #endif
@@ -82,11 +81,28 @@ ADC_MODE(ADC_VCC);
 
 /*######################################################################################*/
 
+bool isRainLikely(float pressureSlope, float humidity, float tempSlope) {
+    if (pressureSlope < -0.05f && humidity > 80.0f) {
+        return true;
+    }
+    if (pressureSlope < -0.03f && humidity > 75.0f && tempSlope < 0.0f) {
+        return true;
+    }
+    return false;
+}
+
+/*######################################################################################*/
+
 void setThresholds() {
 
     static float tTemperature = 0;
     static float tPressure = 0;
     static float tHumidity = 0;
+
+    static unsigned long lastExec = 0;
+
+    if(lastExec && millis() - lastExec < 300000UL) return;
+    lastExec = millis();
 
     File tFile = LittleFS.open(THRESHOLD_DATA, "r");
 
@@ -275,8 +291,8 @@ void readData() {
 
 /*######################################################################################*/
 
-String getContentType(String filename) {
-    if (server.hasArg("download"))
+String getContentType(String filename, AsyncWebServerRequest *request) {
+    if(request->hasParam("download"))
         return "application/octet-stream";
     else if (filename.endsWith(".htm"))
         return "text/html";
@@ -307,31 +323,36 @@ String getContentType(String filename) {
 
 /*######################################################################################*/
 
-char *formatBytes(char *formatedBytes, size_t sizeFormatedBytes, size_t bytes) {
-    if (bytes < 1024) {
-        snprintf(formatedBytes, sizeFormatedBytes, "%uB", (unsigned)bytes);
-    } else if (bytes < (1024 * 1024)) {
-        snprintf(formatedBytes, sizeFormatedBytes, "%.3fKB", bytes / 1024.0);
-    } else if (bytes < (1024 * 1024 * 1024)) {
-        snprintf(formatedBytes, sizeFormatedBytes, "%.3fMB", bytes / 1024.0 / 1024.0);
-    } else {
-        snprintf(formatedBytes, sizeFormatedBytes, "%.3fGB", bytes / 1024.0 / 1024.0 / 1024.0);
+char* formatBytes(char* buf, size_t bufSize, size_t bytes) {
+    const char* units[] = {"B", "KB", "MB", "GB"};
+    double size = bytes;
+    int unitIndex = 0;
+
+    while (size >= 1024.0 && unitIndex < 3) {
+        size /= 1024.0;
+        ++unitIndex;
     }
-    return formatedBytes;
+
+    if (unitIndex == 0)
+        snprintf(buf, bufSize, "%u%s", (unsigned)bytes, units[unitIndex]);
+    else
+        snprintf(buf, bufSize, "%.3f%s", size, units[unitIndex]);
+
+    return buf;
 }
 
 /*######################################################################################*/
 
-void returnFail(const char *msg) {
+void returnFail(AsyncWebServerRequest *request, const char *msg) {
     int msgSize = sizeof(msg) / sizeof(char);
     char *showMsg = static_cast<char *>(malloc(msgSize * sizeof(char) + 2));
     if (showMsg) {
         strcpy(showMsg, msg);
         strcat(showMsg, "\r\n");
-        server.send(500, "text/plain", showMsg);
+        request->send(500, "text/plain", showMsg);
         free(showMsg);
     } else {
-        server.send(500, "text/plain", "System error\r\n");
+        request->send(500, "text/plain", "System error\r\n");
     }
 }
 
@@ -348,7 +369,7 @@ void *memCopy(void *dest, const void *src, size_t n) {
 
 /*######################################################################################*/
 
-void diskUsage() {
+void diskUsage(AsyncWebServerRequest *request) {
     digitalWrite(BLUE_PIN, HIGH);
 
     FSInfo fs_info;
@@ -373,7 +394,7 @@ void diskUsage() {
     Serial.println(buffer);
 #endif
 
-    server.send(200, "text/json", buffer);
+    request->send(200, "text/json", buffer);
     digitalWrite(BLUE_PIN, LOW);
 
     return;
@@ -381,7 +402,7 @@ void diskUsage() {
 
 /*######################################################################################*/
 
-void logsList() {
+void logsList(AsyncWebServerRequest *request) {
     digitalWrite(BLUE_PIN, HIGH);
 
     int logNumber = 1;
@@ -395,7 +416,7 @@ void logsList() {
         snprintf(logName, sizeof(logName), TMPL_LOG, logNumber);
     }
     output += "{\"END\":\"NULL\"}]";
-    server.send(200, "text/json", output);
+    request->send(200, "text/json", output);
 
     digitalWrite(BLUE_PIN, LOW);
     return;
@@ -403,7 +424,7 @@ void logsList() {
 
 /*######################################################################################*/
 
-void clearLogs() {
+void clearLogs(AsyncWebServerRequest *request) {
     digitalWrite(BLUE_PIN, HIGH);
 
     int logNumber = 1;
@@ -425,7 +446,7 @@ void clearLogs() {
         snprintf(logName, sizeof(data), TMPL_LOG, logNumber);
     }
     output += "{\"END\":\"NULL\"}]";
-    server.send(200, "text/json", output);
+    request->send(200, "text/json", output);
 
     digitalWrite(BLUE_PIN, LOW);
     return;
@@ -433,10 +454,12 @@ void clearLogs() {
 
 /*######################################################################################*/
 
-void getLog() {
+void getLog(AsyncWebServerRequest *request) {
     digitalWrite(BLUE_PIN, HIGH);
-    String path = server.arg("log");
-    if (!server.hasArg("log")) {
+    String path;
+    if(request->hasParam("log")) {
+        path = request->getParam("log")->value();
+    } else {
         path = SYS_LOG;
 #if SERIAL_OUT == 1
         Serial.println("Default getLog: " + path);
@@ -446,18 +469,14 @@ void getLog() {
 #if SERIAL_OUT == 1
         Serial.println("Error getLog: [" + path + "]");
 #endif
-        server.send(200, "text/plain", "{\"E\":\"Log not found\"}");
+        request->send(200, "text/plain", "{\"E\":\"Log not found\"}");
         digitalWrite(BLUE_PIN, LOW);
         return;
     }
     File file = LittleFS.open(path, "r");
-    
+    request->send(LittleFS, path, "text/plain");
 #if SERIAL_OUT == 1
-    size_t sent = server.streamFile(file, "text/plain");
-    Serial.print("getLog: " + path + " -> ");
-    Serial.println(sent);
-#else
-    server.streamFile(file, "text/plain");
+    Serial.println("getLog: " + path);
 #endif
     file.close();
     digitalWrite(BLUE_PIN, LOW);
@@ -466,20 +485,18 @@ void getLog() {
 
 /*######################################################################################*/
 
-bool handleFileRead(String path) {
+bool handleFileRead(AsyncWebServerRequest *request) {
     digitalWrite(BLUE_PIN, HIGH);
+    String path = request->url();
     if (path.endsWith("/")) path += "index.html";
-    String contentType = getContentType(path);
+    String contentType = getContentType(path, request);
     String pathWithGz = path + ".gz";
     if (LittleFS.exists(pathWithGz) || LittleFS.exists(path)) {
         if (LittleFS.exists(pathWithGz)) path += ".gz";
         File file = LittleFS.open(path, "r");
+        request->send(LittleFS, path, contentType);
 #if SERIAL_OUT == 1
-        size_t sent = server.streamFile(file, contentType);
-        Serial.print("handleFileRead: " + path + " -> ");
-        Serial.println(sent);
-#else
-        server.streamFile(file, contentType);
+        Serial.println("handleFileRead: " + path);
 #endif
         file.close();
         digitalWrite(BLUE_PIN, LOW);
@@ -491,52 +508,25 @@ bool handleFileRead(String path) {
 
 /*######################################################################################*/
 
-void handleFileUpload() {
-    if (server.uri() != "/edit")
+void handleFileDelete(AsyncWebServerRequest *request) {
+    if (request->params() == 0) { // request->hasParam
+        request->send(500, "text/plain", "Invalid request");
         return;
-    HTTPUpload &upload = server.upload();
-    if (upload.status == UPLOAD_FILE_START) {
-        String filename = upload.filename;
-        if (!filename.startsWith("/"))
-        filename = "/" + filename;
-#if SERIAL_OUT == 1
-        Serial.print(F("handleFileUpload Name: "));
-        Serial.println(filename);
-#endif
-        fsUploadFile = LittleFS.open(filename, "w");
-    } else if (upload.status == UPLOAD_FILE_WRITE) {
-        yield();
-        if (fsUploadFile) fsUploadFile.write(upload.buf, upload.currentSize);
-    } else if (upload.status == UPLOAD_FILE_END) {
-        if (fsUploadFile) {
-        fsUploadFile.close();
-        }
-        char data[128];
-        snprintf(data, sizeof(data), "{\"FL\":\"%s\",\"SZ\":\"%d\"}", upload.filename.c_str(),
-                upload.totalSize);
-        toLog(SYS_LOG, "UF", data); // UF Uploaded File
-#if SERIAL_OUT == 1
-        Serial.print(F("handleFileUpload Size: "));
-        Serial.println(upload.totalSize);
-#endif
     }
-}
-
-/*######################################################################################*/
-
-void handleFileDelete() {
-    if (server.args() == 0)
-        return server.send(500, "text/plain", "BAD ARGS");
-    String path = server.arg(0);
+    String path = request->getParam((int)0)->value();
 #if SERIAL_OUT == 1
     Serial.println("handleFileDelete: " + path);
 #endif
-    if (path == "/")
-        return server.send(500, "text/plain", "BAD PATH");
-    if (!LittleFS.exists(path))
-        return server.send(404, "text/plain", "FileNotFound");
+    if (path == "/") {
+        request->send(500, "text/plain", "Invalid file path");
+        return;
+    }
+    if (!LittleFS.exists(path)) {
+        request->send(500, "text/plain", "File not found");
+        return;
+    }
     LittleFS.remove(path);
-    server.send(200, "text/plain", "");
+    request->send(200, "text/plain", "");
     char data[128];
     snprintf(data, sizeof(data), "{\"FL\":\"%s\"}", path.c_str());
     toLog(SYS_LOG, "RM", data); // RM Removed File
@@ -545,13 +535,13 @@ void handleFileDelete() {
 
 /*######################################################################################*/
 
-void handleFileList() {
-    if (!server.hasArg("dir")) {
-        returnFail("Incorrect arguments");
+void handleFileList(AsyncWebServerRequest *request) {
+    if (!request->hasParam("dir")) {
+        returnFail(request, "Incorrect arguments");
         return;
     }
 
-    String path = server.arg("dir");
+    String path = request->getParam("dir")->value();
 #if SERIAL_OUT == 1
     Serial.println("handleFileList: " + path);
 #endif
@@ -577,12 +567,12 @@ void handleFileList() {
     }
 
     output += "]";
-    server.send(200, "text/json", output);
+    request->send(200, "text/json", output);
 }
 
 /*######################################################################################*/
 
-void getAllData() {
+void getAllData(AsyncWebServerRequest *request) {
     digitalWrite(BLUE_PIN, HIGH);
     time_t ltime;
     time(&ltime);
@@ -610,39 +600,48 @@ void getAllData() {
 #endif
 
     char response[1024];
+    float pressureTrend = TrendTracker_getSlope(&trendPressure);
+    float temperatureTrend = TrendTracker_getSlope(&trendTemperature);
+    char __isRainLikely[] = "&#x1F327; Rain is likely soon";
+    if (!isRainLikely(pressureTrend, DHThumidity, temperatureTrend)) {
+        snprintf(__isRainLikely, sizeof(__isRainLikely), "&#x2600; No rain expected");
+    }
+
     snprintf(
         response, sizeof(response),
     "{\"DS18B20_t\":\"%s %+2.2f°C\",\"BMP180_t\":\"%+2.2f°C\",\"DHT11_t\":\"%+d°C\",\
     \"BMP180_p\":\"%s %2.2f mmHg (%2.3f kPa)\",\"DHT11_h\":\"%s %d%% (%d%%)\",\"version\":\"%s SerialOut:%s Build:%s\",\
     \"ip\":\"%d.%d.%d.%d\",\"uptime\":\"%d day(s) %02d:%02d:%02d\",\"time\":\"%s\",\"start_time\":\"%s\",\
-    \"read_time\":\"%s\",\"read_counter\":\"%lu [%s: %lu msec]\",\"msgs\":\"%lu\",\"volts\":\"%2.3fV\",\"freq\":\"%u MHz\"}",
+    \"read_time\":\"%s\",\"read_counter\":\"%lu [%s: %lu msec]\",\"msgs\":\"%lu\",\"volts\":\"%2.3fV\",\
+    \"freq\":\"%u MHz\", \"rain\":\"%s\"}",
         TrendTracker_getArrow(&trendTemperature), DS18B20Temp, BMP180Temp, DHTTemp, 
         TrendTracker_getArrow(&trendPressure), BMP180PressureMM,
         BMP180Pressure / 1000, TrendTracker_getArrow(&trendHumidity), DHThumidity, DHThumidityRealValue,
         VERSION, SerialOut, BUILD, myIP[0], myIP[1], myIP[2], myIP[3], days,
         hours, mins, secs, curTime, startBuffer, lastReadTimeBuffer,
-        readDataCounter, sensorName, runTime, userMessages, volts, ESP.getCpuFreqMHz());
-    server.send(200, "text/json", response);
+        readDataCounter, sensorName, runTime, userMessages,
+        volts, ESP.getCpuFreqMHz(), __isRainLikely);
+    request->send(200, "text/json", response);
     digitalWrite(BLUE_PIN, LOW);
 }
 
 /*######################################################################################*/
 
-void handleNotFound() {
+void handleNotFound(AsyncWebServerRequest *request) {
     String message = "File Not Found\n\n";
     message += "URI: ";
-    message += server.uri();
+    message += request->url();
     message += "\nMethod: ";
-    message += (server.method() == HTTP_GET) ? "GET" : "POST";
+    message += (request->method() == HTTP_GET) ? "GET" : "POST";
     message += "\nArguments: ";
-    message += server.args();
+    message += request->params();
     message += "\n";
 
-    for (uint8_t i = 0; i < server.args(); i++) {
-        message += " " + server.argName(i) + ": " + server.arg(i) + "\n";
+    for (uint8_t i = 0; i < request->params(); i++) {
+        message += " " + request->getParam(i)->name() + ": " + request->getParam(i)->value() + "\n";
     }
 
-    server.send(404, "text/plain", message);
+    request->send(404, "text/plain", message);
 }
 
 /*######################################################################################*/
@@ -675,15 +674,21 @@ void handleNewMessages(int numNewMessages) {
             return;
         }
         if (bot.messages[i].text == "/meteo") {
+            float pressureTrend = TrendTracker_getSlope(&trendPressure);
+            float temperatureTrend = TrendTracker_getSlope(&trendTemperature);
+            char __isRainLikely[] = "&#x1F327; Rain is likely soon";
+            if (!isRainLikely(pressureTrend, DHThumidity, temperatureTrend)) {
+                snprintf(__isRainLikely, sizeof(__isRainLikely), "&#x2600; No rain expected");
+            }
             snprintf(
                 buffer, sizeof(buffer),
                 "Hello, <b>%s</b>!\n<b>Temperature: %s</b> "
                 "<code>%+2.2f°C</code>\n<b>Pressure: %s</b> <code>%2.2f mmHg "
-                "(%2.3f kPa)</code>\n<b>Humidity: %s</b> <code>%d%%</code>",
+                "(%2.3f kPa)</code>\n<b>Humidity: %s</b> <code>%d%%</code>\n%s",
                 bot.messages[i].from_name.c_str(),
                 TrendTracker_getArrow(&trendTemperature), DS18B20Temp,
                 TrendTracker_getArrow(&trendPressure), BMP180PressureMM, BMP180Pressure / 1000,
-                TrendTracker_getArrow(&trendHumidity), DHThumidity);
+                TrendTracker_getArrow(&trendHumidity), DHThumidity, __isRainLikely);
 #if SERIAL_OUT == 1
             Serial.println(buffer);
 #endif
@@ -938,28 +943,59 @@ void setup() {
 
     ArduinoOTA.setHostname("esp8266meteo");
     ArduinoOTA.begin();
-
+    
     server.on("/list", HTTP_GET, handleFileList);
     server.on("/all", HTTP_GET, getAllData);
     server.on("/disk_usage", HTTP_GET, diskUsage);
     server.on("/logs_list", HTTP_GET, logsList);
     server.on("/clear_logs", HTTP_GET, clearLogs);
     server.on("/get_log", HTTP_GET, getLog);
-    server.on("/edit", HTTP_GET, []() {
-        if (!handleFileRead("/edit.htm")) server.send(404, "text/plain", "FileNotFound");
-    });
     server.on("/edit", HTTP_DELETE, handleFileDelete);
-    server.on("/edit", HTTP_POST, []() { server.send(200, "text/plain", ""); }, handleFileUpload);
-    server.on("/inline", []() { server.send(200, "text/plain", "this works as well"); });
-
-#if SERVER_STATIC == 1
-    server.serveStatic("/", LittleFS, "/", CACHE_MAX_AGE);
+    server.on("/edit", HTTP_POST,[](AsyncWebServerRequest *request) {
+        request->send(200, "text/plain", "");
+    },
+    [](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final) {
+        static File uploadFile;
+        if(index == 0) {
+#if SERIAL_OUT == 1
+            Serial.printf("UploadStart: %s\n", filename.c_str());
 #endif
-
-    server.onNotFound([]() {
-        if (!handleFileRead(server.uri())) server.send(404, "text/plain", "FileNotFound");
+            if (!filename.startsWith("/")) filename = "/" + filename;
+            if (LittleFS.exists(filename)) {
+                LittleFS.remove(filename);
+                char data[128];
+                snprintf(data, sizeof(data), "{\"FL\":\"%s\"}", filename.c_str());
+                toLog(SYS_LOG, "RM", data);
+            }
+            uploadFile = LittleFS.open(filename, "w");
+        }
+        if(uploadFile) {
+            uploadFile.write(data, len);
+        }
+        if (final) {
+#if SERIAL_OUT == 1
+            Serial.printf("UploadEnd: %s (%u)\n", filename.c_str(), index + len);
+#endif
+            char data[128];
+            snprintf(data, sizeof(data), "{\"FL\":\"%s\",\"SZ\":\"%d\"}", filename.c_str(), index + len);
+            toLog(SYS_LOG, "UF", data); // UF Uploaded File
+            if (uploadFile) {
+                uploadFile.close();
+            }
+        }
     });
 
+    server.on("/inline", [](AsyncWebServerRequest *request) {
+        request->send(200, "text/plain", "This works as well");
+    });
+    server.serveStatic("/", LittleFS, "/")
+        .setDefaultFile("index.html")
+        .setCacheControl(CACHE_MAX_AGE);
+    server.onNotFound([](AsyncWebServerRequest *request) {
+        if (!handleFileRead(request)) {
+            request->send(404, "text/plain", "File Not Found");
+        }
+    });
     server.begin();
 
 #if SERIAL_OUT == 1
@@ -1006,9 +1042,9 @@ void setup() {
     rotateLogs();
     createLog(SYS_LOG);
 
-    TrendTracker_init(&trendTemperature, 10, TEMPERATURE_THRESHOLD);
-    TrendTracker_init(&trendPressure, 10, PRESSURE_THRESHOLD);
-    TrendTracker_init(&trendHumidity, 10, HUMIDITY_THRESHOLD);
+    TrendTracker_init(&trendTemperature, TEMPERATURE_THRESHOLD);
+    TrendTracker_init(&trendPressure, PRESSURE_THRESHOLD);
+    TrendTracker_init(&trendHumidity, HUMIDITY_THRESHOLD);
 
     setThresholds();
 }
@@ -1018,7 +1054,6 @@ void setup() {
 void loop() {
 
     readData();
-    server.handleClient();
     MDNS.update();
     if (millis() - botLastTime > BOT_MTBS) {
         int numNewMessages = bot.getUpdates(bot.last_message_received + 1);

@@ -5,4 +5,5 @@
 .vscode/ipch
 .vstags
 *.vstags
-
+src/secret.h
+gitup.pl

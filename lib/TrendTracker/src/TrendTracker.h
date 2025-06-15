@@ -28,7 +28,7 @@ SOFTWARE.
 extern "C" {
 #endif
 
-#define TREND_TRACKER_MAX_POINTS 10 // Maximum frame size
+#define TREND_TRACKER_MAX_POINTS 20 // Maximum frame size
 #define UPWARD   "&#x2191;"
 #define DOWNWARD "&#x2193;"
 #define STEADY   " "
@@ -41,9 +41,10 @@ typedef struct {
     float threshold;
 } TrendTracker;
 
-void TrendTracker_init(TrendTracker* t, int maxPoints, float threshold);
+void TrendTracker_init(TrendTracker* t, float threshold);
 void TrendTracker_add(TrendTracker* t, float value);
 const char* TrendTracker_getArrow(const TrendTracker* t);
+float TrendTracker_getSlope(const TrendTracker* t);
 
 #ifdef __cplusplus
 }

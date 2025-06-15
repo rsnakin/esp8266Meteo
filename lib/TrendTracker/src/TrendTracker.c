@@ -24,8 +24,8 @@ SOFTWARE.
 
 #include "TrendTracker.h"
 
-void TrendTracker_init(TrendTracker* t, int maxPoints, float threshold) {
-    if(maxPoints > TREND_TRACKER_MAX_POINTS) maxPoints = TREND_TRACKER_MAX_POINTS;
+void TrendTracker_init(TrendTracker* t, float threshold) {
+    int maxPoints = TREND_TRACKER_MAX_POINTS;
 
     t->maxPoints = maxPoints;
     t->threshold = threshold;
@@ -72,4 +72,26 @@ const char* TrendTracker_getArrow(const TrendTracker* t) {
     else
         return STEADY;
 
+}
+
+float TrendTracker_getSlope(const TrendTracker* t) {
+    if (t->count < 2) return 0.0f;
+
+    float sum_x = 0, sum_y = 0, sum_xy = 0, sum_x2 = 0;
+
+    for (int i = 0; i < t->count; ++i) {
+        int index = (t->head + i) % t->count;
+        float x = (float)i;
+        float y = t->buffer[index];
+
+        sum_x += x;
+        sum_y += y;
+        sum_xy += x * y;
+        sum_x2 += x * x;
+    }
+
+    float denom = t->count * sum_x2 - sum_x * sum_x;
+    if (denom == 0) return 0.0f;
+
+    return (t->count * sum_xy - sum_x * sum_y) / denom;
 }

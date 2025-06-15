@@ -6,7 +6,7 @@ A PlatformIO-based ESP8266 project for collecting weather data, featuring a Tele
 
 - ESP8266 support (NodeMCU, Wemos D1 Mini, etc.)
 - Telegram bot interaction using `UniversalTelegramBot`
-- Lightweight HTTP server via `ESP8266WebServer`
+- Lightweight HTTP server via `ESP Async WebServer`
 - Sensor support:
   - DS18B20 (1-Wire temperature)
   - DHT11 (humidity & temperature)

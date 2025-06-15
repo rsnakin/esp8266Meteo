@@ -41,8 +41,8 @@ Connecting ESP8266EX NodeMCU 1.0 (ESP-12E Module) pins:
 
 #pragma once
 
-#define VERSION       "3.7.5"
-#define BUILD         "00292"
+#define VERSION       "3.8.0"
+#define BUILD         "00282"
 #define SERIAL_OUT    0 // 1 ON or 0 OFF
 
 #define SERVER_STATIC 1 // 1 YES or 0 NO
@@ -75,30 +75,31 @@ Connecting ESP8266EX NodeMCU 1.0 (ESP-12E Module) pins:
 
 #define MAX2LOG_DS18B20 510L
 #define MAX2LOG_BMP180   53L
-#define MAX2LOG_DHT11   233L
+#define MAX2LOG_DHT11   235L
 
 #define DS18B20       1
 #define BMP180        2
 #define DHT11         3
-#define BOT_MTBS      2000L
-#define SENSORS_DELAY 60000L
+#define BOT_MTBS      2500L
+#define SENSORS_DELAY 30000L
 
 void   readData();
-String getContentType(String filename);
+String getContentType(String filename, AsyncWebServerRequest *request);
 char   *formatBytes(char *formatedBytes, size_t sizeFormatedBytes, size_t bytes);
 void   *memCopy(void *dest, const void *src, size_t n);
-void   returnFail(const char *msg);
-void   diskUsage();
-void   logsList();
-void   clearLogs();
-void   getLog();
-bool   handleFileRead(String path);
+void   returnFail(AsyncWebServerRequest *request, const char *msg);
+void   diskUsage(AsyncWebServerRequest *request);
+void   logsList(AsyncWebServerRequest *request);
+void   clearLogs(AsyncWebServerRequest *request);
+void   getLog(AsyncWebServerRequest *request);
+bool   handleFileRead(AsyncWebServerRequest *request);
+bool   isRainLikely(float pressureSlope, float humidity, float tempSlope);
 void   setThresholds();
-void   handleFileUpload();
-void   handleFileDelete();
-void   handleFileList();
-void   getAllData();
-void   handleNotFound();
+//void   handleFileUpload();
+void   handleFileDelete(AsyncWebServerRequest *request);
+void   handleFileList(AsyncWebServerRequest *request);
+void   getAllData(AsyncWebServerRequest *request);
+void   handleNotFound(AsyncWebServerRequest *request);
 void   handleNewMessages(int numNewMessages);
 void   createLog(const char *fileNamePath);
 void   toLog(const char *fileNamePath, const char *action, char *data);

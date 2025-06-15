@@ -22,17 +22,20 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-var __VERSION = '1.24';
+var __VERSION = '1.30';
 
 var LOADING = false;
 var HOME_MODE = true;
 var LOGS_MODE = false;
 var FFS_MODE = false;
 
-var loadInterval = 1000;
+var loadInterval = 500;
 var homeInterval;
+var homeIntervalTimeout = 30000;
 var logsInterval;
+var logsIntervalTimeout = 60000;
 var ffsInterval;
+var ffsIntervalTimeout = 60000;
 var currentLOG = '/system.log';
 
 var dialogElem;
@@ -131,7 +134,7 @@ function main() {
 			homeInterval = setInterval(() => {
 				homeUpData();
 				houseMouseOverListenerOn();
-			}, 60000);
+			}, homeIntervalTimeout);
 			return(true);
 		}
 		if(LOGS_MODE) {
@@ -340,7 +343,7 @@ function logsLoad(log, startInterval) {
 			if(startInterval) {
 				logsInterval = setInterval(() => {
 					logsLoad(log, false);
-				}, 60000);
+				}, logsIntervalTimeout);
 			}
 			loaderOff();
 		});
@@ -370,6 +373,7 @@ function homeFirstLoad() {
 		DHT11_t:'Temperature DHT11',
 		BMP180_p:'Pressure BMP180 GY-68',
 		DHT11_h:'Humidity DHT11',
+		rain:'Chance of rain',
 		version:'Version',
 		ip:'IP',
 		volts:'Voltage',
@@ -411,7 +415,7 @@ function homeFirstLoad() {
 		homeInterval = setInterval(() => {
 			homeUpData();
 			houseMouseOverListenerOn();
-		}, 60000);
+		}, homeIntervalTimeout);
 		loaderOff();
     });	
 }
@@ -524,6 +528,7 @@ function loadFFS(startInterval) {
 				} catch (error) {
 					console.error(error);
 					showDialog(error);
+					loaderOff();
 				}
 				if(obj) { 
 					obj.sort(compare);
@@ -578,17 +583,19 @@ function loadFFS(startInterval) {
 					if(ffsInterval) {
 						clearInterval(ffsInterval);
 					}
-					loadFFS(true);
+					setTimeout(function(){
+						loadFFS(true);
+					}, 2000);
 				};
 				if(startInterval) {
 					ffsInterval = setInterval(() => {
 						loadFFS(false);
-					}, 60000);
+					}, ffsIntervalTimeout);
 				}
 				loaderOff();
 			});
 		}
-		loaderOff();
+		//loaderOff();
 	});
 }
 function compare(a, b) {
