@@ -42,7 +42,7 @@ Connecting ESP8266EX NodeMCU 1.0 (ESP-12E Module) pins:
 #pragma once
 
 #define VERSION       "3.8.0"
-#define BUILD         "00282"
+#define BUILD         "00283"
 #define SERIAL_OUT    0 // 1 ON or 0 OFF
 
 #define SERVER_STATIC 1 // 1 YES or 0 NO
@@ -80,7 +80,7 @@ Connecting ESP8266EX NodeMCU 1.0 (ESP-12E Module) pins:
 #define DS18B20       1
 #define BMP180        2
 #define DHT11         3
-#define BOT_MTBS      2500L
+#define BOT_MTBS      5000L
 #define SENSORS_DELAY 30000L
 
 void   readData();
@@ -95,7 +95,6 @@ void   getLog(AsyncWebServerRequest *request);
 bool   handleFileRead(AsyncWebServerRequest *request);
 bool   isRainLikely(float pressureSlope, float humidity, float tempSlope);
 void   setThresholds();
-//void   handleFileUpload();
 void   handleFileDelete(AsyncWebServerRequest *request);
 void   handleFileList(AsyncWebServerRequest *request);
 void   getAllData(AsyncWebServerRequest *request);

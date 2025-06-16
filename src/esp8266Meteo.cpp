@@ -509,7 +509,7 @@ bool handleFileRead(AsyncWebServerRequest *request) {
 /*######################################################################################*/
 
 void handleFileDelete(AsyncWebServerRequest *request) {
-    if (request->params() == 0) { // request->hasParam
+    if (request->params() == 0) {
         request->send(500, "text/plain", "Invalid request");
         return;
     }
@@ -529,8 +529,7 @@ void handleFileDelete(AsyncWebServerRequest *request) {
     request->send(200, "text/plain", "");
     char data[128];
     snprintf(data, sizeof(data), "{\"FL\":\"%s\"}", path.c_str());
-    toLog(SYS_LOG, "RM", data); // RM Removed File
-    path = String();
+    toLog(SYS_LOG, "RM", data); // RM File deleted
 }
 
 /*######################################################################################*/
@@ -602,9 +601,9 @@ void getAllData(AsyncWebServerRequest *request) {
     char response[1024];
     float pressureTrend = TrendTracker_getSlope(&trendPressure);
     float temperatureTrend = TrendTracker_getSlope(&trendTemperature);
-    char __isRainLikely[] = "&#x1F327; Rain is likely soon";
+    char __isRainLikely[] = "&#x2614; Rain is likely soon";
     if (!isRainLikely(pressureTrend, DHThumidity, temperatureTrend)) {
-        snprintf(__isRainLikely, sizeof(__isRainLikely), "&#x2600; No rain expected");
+        snprintf(__isRainLikely, sizeof(__isRainLikely), "&#x1F302; No rain expected");
     }
 
     snprintf(
@@ -676,9 +675,9 @@ void handleNewMessages(int numNewMessages) {
         if (bot.messages[i].text == "/meteo") {
             float pressureTrend = TrendTracker_getSlope(&trendPressure);
             float temperatureTrend = TrendTracker_getSlope(&trendTemperature);
-            char __isRainLikely[] = "&#x1F327; Rain is likely soon";
+            char __isRainLikely[] = "&#x2614; Rain is likely soon";
             if (!isRainLikely(pressureTrend, DHThumidity, temperatureTrend)) {
-                snprintf(__isRainLikely, sizeof(__isRainLikely), "&#x2600; No rain expected");
+                snprintf(__isRainLikely, sizeof(__isRainLikely), "&#x1F302; No rain expected");
             }
             snprintf(
                 buffer, sizeof(buffer),
@@ -978,7 +977,7 @@ void setup() {
 #endif
             char data[128];
             snprintf(data, sizeof(data), "{\"FL\":\"%s\",\"SZ\":\"%d\"}", filename.c_str(), index + len);
-            toLog(SYS_LOG, "UF", data); // UF Uploaded File
+            toLog(SYS_LOG, "UF", data); // UF File uploaded
             if (uploadFile) {
                 uploadFile.close();
             }

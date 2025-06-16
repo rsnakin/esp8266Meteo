@@ -22,20 +22,20 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-var __VERSION = '1.30';
+var __VERSION = '1.31';
 
-var LOADING = false;
+var LOADING   = false;
 var HOME_MODE = true;
 var LOGS_MODE = false;
-var FFS_MODE = false;
+var FFS_MODE  = false;
 
-var loadInterval = 500;
+var loadInterval        = 500;
 var homeInterval;
 var homeIntervalTimeout = 30000;
 var logsInterval;
 var logsIntervalTimeout = 60000;
 var ffsInterval;
-var ffsIntervalTimeout = 60000;
+var ffsIntervalTimeout  = 60000;
 var currentLOG = '/system.log';
 
 var dialogElem;
@@ -221,7 +221,6 @@ function showDialog(msg) {
 	dialogElem.showModal();
 }
 function __loadData(dataURL, dataId, rel, type) {
-	// var cssId = dataId;
     var head  = document.getElementsByTagName('head')[0];
     var link  = document.createElement('link');
     link.id   = dataId;
@@ -312,12 +311,12 @@ function logsLoad(log, startInterval) {
 					logHTML += '<td class="logBody">Run time: <font color="#2192fc">' + obj[i]['D']['RT'] + '</font></td>';
 				}
 				if(obj[i]['A'] == 'UF') {
-					logHTML += '<td class="logBody">Uploaded file</td>';
+					logHTML += '<td class="logBody">File uploaded</td>';
 					logHTML += '<td class="logBody">File: <font color="#2192fc" class="text-uppercase">/' + obj[i]['D']['FL'] + '</font></td>';
 					logHTML += '<td class="logBody">Size: <font color="#2192fc">' + obj[i]['D']['SZ'] + '</font></td>';
 				}
 				if(obj[i]['A'] == 'RM') {
-					logHTML += '<td class="logBody">Removed file</td>';
+					logHTML += '<td class="logBody">File deleted</td>';
 					logHTML += '<td class="logBody">File: <font color="#2192fc" class="text-uppercase">' + obj[i]['D']['FL'] + '</font></td>';
 					logHTML += '<td class="logBody"></td>';
 				}
