@@ -22,7 +22,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-var __VERSION = '1.31';
+var __VERSION = '1.33';
 
 var LOADING   = false;
 var HOME_MODE = true;
@@ -321,7 +321,7 @@ function logsLoad(log, startInterval) {
 					logHTML += '<td class="logBody"></td>';
 				}
 				if(obj[i]['A'] == 'RS') {
-					logHTML += '<td class="logBody">Readed sensor</td>';
+					logHTML += '<td class="logBody">Slow sensor response</td>';
 					logHTML += '<td class="logBody">Sensor: <font color="#2192fc">' + obj[i]['D']['SN'] + '</font></td>';
 					logHTML += '<td class="logBody">Run time: <font color="#2192fc">' + obj[i]['D']['RT'] + '</font></td>';
 				}
