@@ -6,4 +6,3 @@
 .vstags
 *.vstags
 src/secret.h
-gitup.pl
