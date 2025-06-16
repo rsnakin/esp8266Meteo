@@ -42,7 +42,7 @@ Connecting ESP8266EX NodeMCU 1.0 (ESP-12E Module) pins:
 #pragma once
 
 #define VERSION       "3.8.0"
-#define BUILD         "00283"
+#define BUILD         "00284"
 #define SERIAL_OUT    0 // 1 ON or 0 OFF
 
 #define SERVER_STATIC 1 // 1 YES or 0 NO
@@ -70,6 +70,8 @@ Connecting ESP8266EX NodeMCU 1.0 (ESP-12E Module) pins:
 #define PRESSURE_THRESHOLD    0.05f
 #define HUMIDITY_THRESHOLD    0.06f
 #define THRESHOLD_DATA        "/thresholds.dat"
+#define RAIN_LIKELY           "&#x2614; Rain is likely soon"
+#define NO_RAIN_EXP           "&#x1F302; No rain expected"
 
 #define HUMIDITY_CORRECTION 1.27f
 

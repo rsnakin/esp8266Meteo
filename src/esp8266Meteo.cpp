@@ -82,12 +82,10 @@ ADC_MODE(ADC_VCC);
 /*######################################################################################*/
 
 bool isRainLikely(float pressureSlope, float humidity, float tempSlope) {
-    if (pressureSlope < -0.05f && humidity > 80.0f) {
-        return true;
-    }
-    if (pressureSlope < -0.03f && humidity > 75.0f && tempSlope < 0.0f) {
-        return true;
-    }
+    if (
+        (pressureSlope < -0.05f && humidity > 80.0f) || 
+        (pressureSlope < -0.03f && humidity > 75.0f && tempSlope < 0.0f)
+    ) return true;
     return false;
 }
 
@@ -206,7 +204,7 @@ void readData() {
         DHThumidityRealValue = DHT.humidity;
         DHThumidity = static_cast<int>(DHThumidityRealValue * HUMIDITY_CORRECTION);
         if (DHThumidity > 100) DHThumidity = 100;
-        TrendTracker_add(&trendHumidity, static_cast<float>(DHThumidityRealValue));
+        TrendTracker_add(&trendHumidity, static_cast<float>(DHThumidity));
         DHTTemp = DHT.temperature;
     }
 
@@ -601,9 +599,9 @@ void getAllData(AsyncWebServerRequest *request) {
     char response[1024];
     float pressureTrend = TrendTracker_getSlope(&trendPressure);
     float temperatureTrend = TrendTracker_getSlope(&trendTemperature);
-    char __isRainLikely[] = "&#x2614; Rain is likely soon";
+    char __isRainLikely[] = RAIN_LIKELY;
     if (!isRainLikely(pressureTrend, DHThumidity, temperatureTrend)) {
-        snprintf(__isRainLikely, sizeof(__isRainLikely), "&#x1F302; No rain expected");
+        snprintf(__isRainLikely, sizeof(__isRainLikely), NO_RAIN_EXP);
     }
 
     snprintf(
@@ -675,9 +673,9 @@ void handleNewMessages(int numNewMessages) {
         if (bot.messages[i].text == "/meteo") {
             float pressureTrend = TrendTracker_getSlope(&trendPressure);
             float temperatureTrend = TrendTracker_getSlope(&trendTemperature);
-            char __isRainLikely[] = "&#x2614; Rain is likely soon";
+            char __isRainLikely[] = RAIN_LIKELY;
             if (!isRainLikely(pressureTrend, DHThumidity, temperatureTrend)) {
-                snprintf(__isRainLikely, sizeof(__isRainLikely), "&#x1F302; No rain expected");
+                snprintf(__isRainLikely, sizeof(__isRainLikely), NO_RAIN_EXP);
             }
             snprintf(
                 buffer, sizeof(buffer),
