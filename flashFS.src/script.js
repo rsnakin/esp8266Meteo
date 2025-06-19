@@ -22,7 +22,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-var __VERSION = '1.33';
+var __VERSION = '1.34';
 
 var LOADING   = false;
 var HOME_MODE = true;
@@ -376,6 +376,7 @@ function homeFirstLoad() {
 		version:'Version',
 		ip:'IP',
 		volts:'Voltage',
+		rssi:'Wi-Fi signal level',
 		freq:'CPU frequency',
 		uptime:'Uptime',
 		time:'Time',
@@ -402,7 +403,6 @@ function homeFirstLoad() {
 		let contentDIV = document.getElementById('content');
 		let homeHTML = '<table class="table" style="border-bottom:0px solid #fff;"><tbody>';
         for (key in fields) {
-            //element.innerHTML = obj[key];
 			homeHTML += '<tr class="homeMouseOver" style="border-top:1px solid rgb(92,172,252);">'
             + '<td class="tdTitle">' + fields[key] + '&nbsp;&nbsp;&nbsp;&nbsp;:</td>'
             + '<td class="tdValue" id="' + key + '">' + obj[key] +'</td></tr>'

@@ -42,7 +42,7 @@ Connecting ESP8266EX NodeMCU 1.0 (ESP-12E Module) pins:
 #pragma once
 
 #define VERSION       "3.8.0"
-#define BUILD         "00284"
+#define BUILD         "00293"
 #define SERIAL_OUT    0 // 1 ON or 0 OFF
 
 #define SERVER_STATIC 1 // 1 YES or 0 NO
@@ -54,12 +54,14 @@ Connecting ESP8266EX NodeMCU 1.0 (ESP-12E Module) pins:
 #define TIMEZONE_OFFSET_SEC (TIMEZONE_OFFSET * 3600)
 #define NTP_SERVER          "pool.ntp.org" // Set the closest available NTP server for time synchronization
 
+//#define WIFI_POWER    20.5 // 20.5 max WiFi Power
+
 #define BLUE_PIN      14       // GPIO14 - D5 LED BLUE
 #define GREEN_PIN     12       // GPIO12 - D6 LED GREEN
 #define DHT11_PIN     2        // GPIO2  - D4 DHT11
 #define ONE_WIRE_BUS  0        // GPIO0  - D3 DS18B20
 
-// Logs keys: SL - Start Log, RS - Readed Sensor, SM - Sent Message, UF - File Uploaded, RM - Removed File
+// Logs keys: SL - Start Log, RS - Slow sensor response, SM - Sent Message, UF - File Uploaded, RM - Removed File
 #define SYS_LOG       "/system.log" 
 #define TMPL_LOG      "/system.%03d.log"
 #define MAX_LOG_SIZE  5120
@@ -95,7 +97,7 @@ void   logsList(AsyncWebServerRequest *request);
 void   clearLogs(AsyncWebServerRequest *request);
 void   getLog(AsyncWebServerRequest *request);
 bool   handleFileRead(AsyncWebServerRequest *request);
-bool   isRainLikely(float pressureSlope, float humidity, float tempSlope);
+bool   isRainLikely();
 void   setThresholds();
 void   handleFileDelete(AsyncWebServerRequest *request);
 void   handleFileList(AsyncWebServerRequest *request);

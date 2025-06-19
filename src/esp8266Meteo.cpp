@@ -81,10 +81,13 @@ ADC_MODE(ADC_VCC);
 
 /*######################################################################################*/
 
-bool isRainLikely(float pressureSlope, float humidity, float tempSlope) {
+bool isRainLikely() {
+    float pressureSlope = TrendTracker_getSlope(&trendPressure);
+    float tempSlope = TrendTracker_getSlope(&trendTemperature);
+
     if (
-        (pressureSlope < -0.05f && humidity > 80.0f) || 
-        (pressureSlope < -0.03f && humidity > 75.0f && tempSlope < 0.0f)
+        (pressureSlope < -0.03f && DHThumidity > 65.0f) || 
+        (pressureSlope < -0.01f && DHThumidity > 60.0f && tempSlope < 0.0f)
     ) return true;
     return false;
 }
@@ -173,8 +176,6 @@ void readData() {
 
     if (((nowMills - lastReadDataTime) < SENSORS_DELAY) && !firstTime) return;
 
-    setThresholds();
-    
     lastReadDataTime = millis();
     if (greenLed != 0) {
         digitalWrite(BLUE_PIN, HIGH);
@@ -202,9 +203,10 @@ void readData() {
     if (sensor == DHT11 || firstTime) {
         DHT.read(DHT11_PIN);
         DHThumidityRealValue = DHT.humidity;
-        DHThumidity = static_cast<int>(DHThumidityRealValue * HUMIDITY_CORRECTION);
-        if (DHThumidity > 100) DHThumidity = 100;
-        TrendTracker_add(&trendHumidity, static_cast<float>(DHThumidity));
+        float humidity = DHThumidityRealValue * HUMIDITY_CORRECTION;
+        if (humidity > 100.) humidity = 100.;
+        TrendTracker_add(&trendHumidity, humidity);
+        DHThumidity = static_cast<int>(humidity);
         DHTTemp = DHT.temperature;
     }
 
@@ -597,10 +599,8 @@ void getAllData(AsyncWebServerRequest *request) {
 #endif
 
     char response[1024];
-    float pressureTrend = TrendTracker_getSlope(&trendPressure);
-    float temperatureTrend = TrendTracker_getSlope(&trendTemperature);
     char __isRainLikely[] = RAIN_LIKELY;
-    if (!isRainLikely(pressureTrend, DHThumidity, temperatureTrend)) {
+    if (!isRainLikely()) {
         snprintf(__isRainLikely, sizeof(__isRainLikely), NO_RAIN_EXP);
     }
 
@@ -609,15 +609,15 @@ void getAllData(AsyncWebServerRequest *request) {
     "{\"DS18B20_t\":\"%s %+2.2f°C\",\"BMP180_t\":\"%+2.2f°C\",\"DHT11_t\":\"%+d°C\",\
     \"BMP180_p\":\"%s %2.2f mmHg (%2.3f kPa)\",\"DHT11_h\":\"%s %d%% (%d%%)\",\"version\":\"%s SerialOut:%s Build:%s\",\
     \"ip\":\"%d.%d.%d.%d\",\"uptime\":\"%d day(s) %02d:%02d:%02d\",\"time\":\"%s\",\"start_time\":\"%s\",\
-    \"read_time\":\"%s\",\"read_counter\":\"%lu [%s: %lu msec]\",\"msgs\":\"%lu\",\"volts\":\"%2.3fV\",\
-    \"freq\":\"%u MHz\", \"rain\":\"%s\"}",
+    \"read_time\":\"%s\",\"read_counter\":\"%lu [%s: %lu msec]\",\"msgs\":\"%lu\",\"volts\":\"%2.3f V\",\
+    \"freq\":\"%u MHz\", \"rain\":\"%s\",\"rssi\":\"%d dBm\"}",
         TrendTracker_getArrow(&trendTemperature), DS18B20Temp, BMP180Temp, DHTTemp, 
         TrendTracker_getArrow(&trendPressure), BMP180PressureMM,
         BMP180Pressure / 1000, TrendTracker_getArrow(&trendHumidity), DHThumidity, DHThumidityRealValue,
         VERSION, SerialOut, BUILD, myIP[0], myIP[1], myIP[2], myIP[3], days,
         hours, mins, secs, curTime, startBuffer, lastReadTimeBuffer,
         readDataCounter, sensorName, runTime, userMessages,
-        volts, ESP.getCpuFreqMHz(), __isRainLikely);
+        volts, ESP.getCpuFreqMHz(), __isRainLikely, WiFi.RSSI());
     request->send(200, "text/json", response);
     digitalWrite(BLUE_PIN, LOW);
 }
@@ -671,10 +671,8 @@ void handleNewMessages(int numNewMessages) {
             return;
         }
         if (bot.messages[i].text == "/meteo") {
-            float pressureTrend = TrendTracker_getSlope(&trendPressure);
-            float temperatureTrend = TrendTracker_getSlope(&trendTemperature);
             char __isRainLikely[] = RAIN_LIKELY;
-            if (!isRainLikely(pressureTrend, DHThumidity, temperatureTrend)) {
+            if (!isRainLikely()) {
                 snprintf(__isRainLikely, sizeof(__isRainLikely), NO_RAIN_EXP);
             }
             snprintf(
@@ -691,7 +689,8 @@ void handleNewMessages(int numNewMessages) {
 #endif
             bot.sendMessage(bot.messages[i].chat_id, buffer, "HTML");
             char data[128];
-            snprintf(data, sizeof(data), "{\"U\":\"%s\",\"RT\":\"%lu\",\"C\":\"m\"}", bot.messages[i].from_name.c_str(), millis() - startT);
+            snprintf(data, sizeof(data), "{\"U\":\"%s\",\"RT\":\"%lu\",\"C\":\"m\"}", 
+                bot.messages[i].from_name.c_str(), millis() - startT);
             toLog(SYS_LOG, "SM", data);
             digitalWrite(BLUE_PIN, LOW);
             return;
@@ -922,6 +921,9 @@ void setup() {
     Serial.print(F("Connecting to Wifi SSID "));
     Serial.print(SSID);
 #endif
+#if WIFI_POWER
+    WiFi.setOutputPower(WIFI_POWER);
+#endif
     WiFi.begin(SSID, PASSWORD);
     ledOnOff = false;
     while (WiFi.status() != WL_CONNECTED) {
@@ -1043,7 +1045,6 @@ void setup() {
     TrendTracker_init(&trendPressure, PRESSURE_THRESHOLD);
     TrendTracker_init(&trendHumidity, HUMIDITY_THRESHOLD);
 
-    setThresholds();
 }
 
 /*######################################################################################*/
@@ -1067,6 +1068,7 @@ void loop() {
         digitalWrite(GREEN_PIN, LOW);
         greenLed = 0;
     }
+    setThresholds();
     ArduinoOTA.handle();
 
 }
