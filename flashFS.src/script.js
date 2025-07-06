@@ -22,7 +22,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-var __VERSION = '1.34';
+var __VERSION = '1.36';
 
 var LOADING   = false;
 var HOME_MODE = true;
@@ -31,7 +31,7 @@ var FFS_MODE  = false;
 
 var loadInterval        = 500;
 var homeInterval;
-var homeIntervalTimeout = 30000;
+var homeIntervalTimeout = 60000;
 var logsInterval;
 var logsIntervalTimeout = 60000;
 var ffsInterval;
@@ -377,7 +377,9 @@ function homeFirstLoad() {
 		ip:'IP',
 		volts:'Voltage',
 		rssi:'Wi-Fi signal level',
+		SSID:'SSID',
 		freq:'CPU frequency',
+		freeMem:'freeMem',
 		uptime:'Uptime',
 		time:'Time',
 		start_time:'Start time',

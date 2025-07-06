@@ -24,6 +24,7 @@ SOFTWARE.
 
 #include <Adafruit_BMP085.h>
 #include <Arduino.h>
+#include <user_interface.h>
 #include <DFRobot_DHT11.h>
 #include <DallasTemperature.h>
 #include <ESP8266WiFi.h>
@@ -40,7 +41,6 @@ SOFTWARE.
 #include "TrendTracker.h"
 #include "esp8266Meteo.h"
 
-time_t            localStTime;
 time_t            logTime;
 time_t            startTime;
 float             DS18B20Temp;
@@ -56,7 +56,6 @@ int               DHTTemp;
 char              startBuffer[32];
 char              lastReadTimeBuffer[32];
 char              sensorName[10];
-unsigned long int botLastTime;
 unsigned long int readDataCounter = 0;
 unsigned long int runTime;
 unsigned long int lastReadDataTime = 0;
@@ -69,6 +68,7 @@ DeviceAddress     temperatureSensors[3];
 TrendTracker      trendTemperature;
 TrendTracker      trendPressure;
 TrendTracker      trendHumidity;
+char              SSID[128];
 
 OneWire oneWire(ONE_WIRE_BUS);
 DallasTemperature sensors(&oneWire);
@@ -81,13 +81,54 @@ ADC_MODE(ADC_VCC);
 
 /*######################################################################################*/
 
+void connectWiFi() {
+	WiFi.mode(WIFI_STA);
+	WiFi.setHostname(HOSTNAME);
+	WiFi.setSleep(false);
+	WiFi.setAutoReconnect(true);
+	int n = WiFi.scanNetworks(false, false);
+
+	int bestCred = -1;
+  	int bestRSSI = -127;
+
+	for (int i = 0; i < n; i++) {
+		String ssidFound = WiFi.SSID(i);
+		for (size_t c = 0; c < WIFI_CREDENTIALS_COUNT; c++) {
+			if (ssidFound.equals(WIFI_CREDENTIALS[c].ssid)) {
+				int rssiFound = WiFi.RSSI(i);
+				if (rssiFound > bestRSSI) {
+					bestRSSI = rssiFound;
+					bestCred = c;
+				}
+			}
+		}
+	}
+
+	if (bestCred >= 0) {
+		snprintf(SSID, sizeof(SSID), "%s", WIFI_CREDENTIALS[bestCred].ssid);
+		snprintf(SSID, sizeof(SSID), "%s", strupr(SSID));
+		WiFi.begin(WIFI_CREDENTIALS[bestCred].ssid, WIFI_CREDENTIALS[bestCred].pass);
+	}
+
+	while (WiFi.status() != WL_CONNECTED) {
+		delay(250);
+#if SERIAL_OUT == 1
+		Serial.print(".");
+#endif
+	}
+
+}
+
+/*######################################################################################*/
+
 bool isRainLikely() {
     float pressureSlope = TrendTracker_getSlope(&trendPressure);
     float tempSlope = TrendTracker_getSlope(&trendTemperature);
 
     if (
         (pressureSlope < -0.03f && DHThumidity > 65.0f) || 
-        (pressureSlope < -0.01f && DHThumidity > 60.0f && tempSlope < 0.0f)
+        (pressureSlope < -0.01f && DHThumidity > 60.0f && tempSlope < 0.0f) ||
+        (pressureSlope <= 0.0f && DHThumidity > 90.0)
     ) return true;
     return false;
 }
@@ -266,7 +307,6 @@ void readData() {
     firstTime = false;
     time_t ltime;
     time(&ltime);
-    ltime = ltime + TIMEZONE_OFFSET_SEC;
     snprintf(lastReadTimeBuffer, sizeof(lastReadTimeBuffer), "%s", ctime(&ltime));
     lastReadTimeBuffer[strlen(lastReadTimeBuffer) - 1] = '\0';
 
@@ -323,7 +363,10 @@ String getContentType(String filename, AsyncWebServerRequest *request) {
 
 /*######################################################################################*/
 
-char* formatBytes(char* buf, size_t bufSize, size_t bytes) {
+char* formatBytes(size_t bytes) {
+    static char buf[2][20];
+    static uint8_t idx = 0;
+
     const char* units[] = {"B", "KB", "MB", "GB"};
     double size = bytes;
     int unitIndex = 0;
@@ -333,27 +376,15 @@ char* formatBytes(char* buf, size_t bufSize, size_t bytes) {
         ++unitIndex;
     }
 
+    char* current = buf[idx];
+    idx = (idx + 1) % 2;
+
     if (unitIndex == 0)
-        snprintf(buf, bufSize, "%u%s", (unsigned)bytes, units[unitIndex]);
+        snprintf(current, 20, "%u%s", (unsigned)bytes, units[unitIndex]);
     else
-        snprintf(buf, bufSize, "%.3f%s", size, units[unitIndex]);
+        snprintf(current, 20, "%.3f%s", size, units[unitIndex]);
 
-    return buf;
-}
-
-/*######################################################################################*/
-
-void returnFail(AsyncWebServerRequest *request, const char *msg) {
-    int msgSize = sizeof(msg) / sizeof(char);
-    char *showMsg = static_cast<char *>(malloc(msgSize * sizeof(char) + 2));
-    if (showMsg) {
-        strcpy(showMsg, msg);
-        strcat(showMsg, "\r\n");
-        request->send(500, "text/plain", showMsg);
-        free(showMsg);
-    } else {
-        request->send(500, "text/plain", "System error\r\n");
-    }
+    return current;
 }
 
 /*######################################################################################*/
@@ -383,12 +414,12 @@ void diskUsage(AsyncWebServerRequest *request) {
     }
 
     char buffer[256];
-    char formatedTotalBytes[20];
-    char formatedUsedBytes[20];
     snprintf(buffer, sizeof(buffer), "{\"T\":\"%s\",\"U\":\"%s\",\"TU\":\"%ld\",\"UU\":\"%ld\"}",
-            formatBytes(formatedTotalBytes, sizeof(formatedTotalBytes), totalBytes), 
-            formatBytes(formatedUsedBytes, sizeof(formatedUsedBytes), usedBytes), totalBytes,
-            usedBytes);
+            formatBytes(totalBytes), 
+            formatBytes(usedBytes),
+            totalBytes,
+            usedBytes
+    );
 #if SERIAL_OUT == 1
     Serial.print(F("diskUsage: "));
     Serial.println(buffer);
@@ -485,29 +516,6 @@ void getLog(AsyncWebServerRequest *request) {
 
 /*######################################################################################*/
 
-bool handleFileRead(AsyncWebServerRequest *request) {
-    digitalWrite(BLUE_PIN, HIGH);
-    String path = request->url();
-    if (path.endsWith("/")) path += "index.html";
-    String contentType = getContentType(path, request);
-    String pathWithGz = path + ".gz";
-    if (LittleFS.exists(pathWithGz) || LittleFS.exists(path)) {
-        if (LittleFS.exists(pathWithGz)) path += ".gz";
-        File file = LittleFS.open(path, "r");
-        request->send(LittleFS, path, contentType);
-#if SERIAL_OUT == 1
-        Serial.println("handleFileRead: " + path);
-#endif
-        file.close();
-        digitalWrite(BLUE_PIN, LOW);
-        return true;
-    }
-    digitalWrite(BLUE_PIN, LOW);
-    return false;
-}
-
-/*######################################################################################*/
-
 void handleFileDelete(AsyncWebServerRequest *request) {
     if (request->params() == 0) {
         request->send(500, "text/plain", "Invalid request");
@@ -536,7 +544,7 @@ void handleFileDelete(AsyncWebServerRequest *request) {
 
 void handleFileList(AsyncWebServerRequest *request) {
     if (!request->hasParam("dir")) {
-        returnFail(request, "Incorrect arguments");
+        request->send(500, "text/plain", "Incorrect arguments\r\n");
         return;
     }
 
@@ -553,14 +561,14 @@ void handleFileList(AsyncWebServerRequest *request) {
         if (output != "[")
         output += ',';
         size_t fileSize;
-        char sizeFormatedBytes[20];
+        //char sizeFormatedBytes[20];
         fileSize = dir.fileSize();
         output += "{\"type\":\"";
         output += "file";
         output += "\",\"name\":\"";
         output += entry.name();
         output += "\",\"size\":\"";
-        output += formatBytes(sizeFormatedBytes, sizeof(sizeFormatedBytes), fileSize);
+        output += formatBytes(fileSize);
         output += "\"}";
         entry.close();
     }
@@ -584,8 +592,6 @@ void getAllData(AsyncWebServerRequest *request) {
     int mins  = rem / 60;
     int secs  = rem % 60;
 
-    ltime = ltime + TIMEZONE_OFFSET_SEC;
-
     char curTime[32];
     snprintf(curTime, sizeof(curTime), "%s", ctime(&ltime));
     curTime[strlen(curTime) - 1] = '\0';
@@ -604,43 +610,34 @@ void getAllData(AsyncWebServerRequest *request) {
         snprintf(__isRainLikely, sizeof(__isRainLikely), NO_RAIN_EXP);
     }
 
+    uint32_t freeMem = ESP.getFreeHeap();
+
     snprintf(
         response, sizeof(response),
     "{\"DS18B20_t\":\"%s %+2.2f°C\",\"BMP180_t\":\"%+2.2f°C\",\"DHT11_t\":\"%+d°C\",\
     \"BMP180_p\":\"%s %2.2f mmHg (%2.3f kPa)\",\"DHT11_h\":\"%s %d%% (%d%%)\",\"version\":\"%s SerialOut:%s Build:%s\",\
     \"ip\":\"%d.%d.%d.%d\",\"uptime\":\"%d day(s) %02d:%02d:%02d\",\"time\":\"%s\",\"start_time\":\"%s\",\
     \"read_time\":\"%s\",\"read_counter\":\"%lu [%s: %lu msec]\",\"msgs\":\"%lu\",\"volts\":\"%2.3f V\",\
-    \"freq\":\"%u MHz\", \"rain\":\"%s\",\"rssi\":\"%d dBm\"}",
+    \"freq\":\"%u MHz\", \"rain\":\"%s\",\"rssi\":\"%d dBm\",\"SSID\":\"%s\",\"freeMem\":\"%d\"}",
         TrendTracker_getArrow(&trendTemperature), DS18B20Temp, BMP180Temp, DHTTemp, 
         TrendTracker_getArrow(&trendPressure), BMP180PressureMM,
         BMP180Pressure / 1000, TrendTracker_getArrow(&trendHumidity), DHThumidity, DHThumidityRealValue,
         VERSION, SerialOut, BUILD, myIP[0], myIP[1], myIP[2], myIP[3], days,
         hours, mins, secs, curTime, startBuffer, lastReadTimeBuffer,
         readDataCounter, sensorName, runTime, userMessages,
-        volts, ESP.getCpuFreqMHz(), __isRainLikely, WiFi.RSSI());
+        volts, ESP.getCpuFreqMHz(), __isRainLikely, WiFi.RSSI(), SSID, freeMem);
     request->send(200, "text/json", response);
     digitalWrite(BLUE_PIN, LOW);
 }
 
 /*######################################################################################*/
 
-void handleNotFound(AsyncWebServerRequest *request) {
-    String message = "File Not Found\n\n";
-    message += "URI: ";
-    message += request->url();
-    message += "\nMethod: ";
-    message += (request->method() == HTTP_GET) ? "GET" : "POST";
-    message += "\nArguments: ";
-    message += request->params();
-    message += "\n";
-
-    for (uint8_t i = 0; i < request->params(); i++) {
-        message += " " + request->getParam(i)->name() + ": " + request->getParam(i)->value() + "\n";
-    }
-
-    request->send(404, "text/plain", message);
+void logAndLed(const char* u, char code, unsigned long rt) {
+    char d[64];
+    snprintf(d, sizeof(d), "{\"U\":\"@%s\",\"RT\":%lu,\"C\":\"%c\"}", u, rt, code);
+    toLog(SYS_LOG, "SM", d);
+    digitalWrite(BLUE_PIN, LOW);
 }
-
 /*######################################################################################*/
 
 void handleNewMessages(int numNewMessages) {
@@ -654,20 +651,15 @@ void handleNewMessages(int numNewMessages) {
         if (bot.messages[i].text == "/info") {
             time_t ltime;
             time(&ltime);
-            ltime = ltime + TIMEZONE_OFFSET_SEC;
             snprintf(buffer, sizeof(buffer),
-                    "<b>Version:</b> <code>%s</code>\n<b>IP</b>: "
+                    "<b>Version:</b> <code>%s</code>\n<b>SSID</b>: <code>%s</code>\n<b>IP</b>: "
                     "<code>%d.%d.%d.%d</code>\n<b>Time</b>: <code>%s</code>",
-                    VERSION, myIP[0], myIP[1], myIP[2], myIP[3], ctime(&ltime));
+                    VERSION, SSID, myIP[0], myIP[1], myIP[2], myIP[3], ctime(&ltime));
 #if SERIAL_OUT == 1
             Serial.println(buffer);
 #endif
             bot.sendMessage(bot.messages[i].chat_id, buffer, "HTML");
-            char data[128];
-            snprintf(data, sizeof(data), "{\"U\":\"%s\",\"RT\":\"%lu\",\"C\":\"i\"}",
-                    bot.messages[i].from_name.c_str(), millis() - startT);
-            toLog(SYS_LOG, "SM", data);
-            digitalWrite(BLUE_PIN, LOW);
+            logAndLed(bot.messages[i].from_name.c_str(), 'i', millis() - startT);
             return;
         }
         if (bot.messages[i].text == "/meteo") {
@@ -688,11 +680,7 @@ void handleNewMessages(int numNewMessages) {
             Serial.println(buffer);
 #endif
             bot.sendMessage(bot.messages[i].chat_id, buffer, "HTML");
-            char data[128];
-            snprintf(data, sizeof(data), "{\"U\":\"%s\",\"RT\":\"%lu\",\"C\":\"m\"}", 
-                bot.messages[i].from_name.c_str(), millis() - startT);
-            toLog(SYS_LOG, "SM", data);
-            digitalWrite(BLUE_PIN, LOW);
+            logAndLed(bot.messages[i].from_name.c_str(), 'm', millis() - startT);
             return;
         }
         if(bot.messages[i].text == "/location") {
@@ -703,10 +691,7 @@ void handleNewMessages(int numNewMessages) {
             Serial.println(LATITUDE);
 #endif
             bot.sendLocation(bot.messages[i].chat_id, LATITUDE, LONGITUDE, 0);
-            char data[128];
-            snprintf(data, sizeof(data), "{\"U\":\"%s\",\"RT\":\"%lu\",\"C\":\"l\"}", bot.messages[i].from_name.c_str(), millis() - startT);
-            toLog(SYS_LOG, "SM", data);
-            digitalWrite(BLUE_PIN, LOW);
+            logAndLed(bot.messages[i].from_name.c_str(), 'l', millis() - startT);
             return;
         }
 
@@ -722,11 +707,7 @@ void handleNewMessages(int numNewMessages) {
         Serial.println(buffer);
 #endif
         bot.sendMessage(bot.messages[i].chat_id, buffer, "HTML");
-        char data[128];
-        snprintf(data, sizeof(data), "{\"U\":\"%s\",\"RT\":\"%lu\",\"C\":\"h\"}",
-            bot.messages[i].from_name.c_str(), millis() - startT);
-        toLog(SYS_LOG, "SM", data);
-        digitalWrite(BLUE_PIN, LOW);
+        logAndLed(bot.messages[i].from_name.c_str(), 'h', millis() - startT);
     }
     digitalWrite(BLUE_PIN, LOW);
     return;
@@ -826,6 +807,22 @@ void rotateLogs() {
 
 /*######################################################################################*/
 
+const char* resetReasonToString(uint8 reason) {
+    switch (reason) {
+        case 0: return "Unknown";
+        case 1: return "Power-on";
+        case 2: return "Hardware watchdog";
+        case 3: return "Exception";
+        case 4: return "Software watchdog";
+        case 5: return "Software restart";
+        case 6: return "Deep sleep wake";
+        case 7: return "External reset";
+        default: return "Invalid";
+   }
+}
+
+/*######################################################################################*/
+
 void setup() {
 
     pinMode(BLUE_PIN, OUTPUT);
@@ -875,9 +872,8 @@ void setup() {
     while (dir.next()) {
         String fileName = dir.fileName();
         size_t fileSize = dir.fileSize();
-        char sizeFormatedBytes[20];
         Serial.printf("FS File: %s, size: %s\n", fileName.c_str(), 
-        formatBytes(sizeFormatedBytes, sizeof(sizeFormatedBytes), fileSize));
+        formatBytes(fileSize));
     }
     Serial.printf("\n");
     Serial.flush();
@@ -909,7 +905,8 @@ void setup() {
     }
 
     digitalWrite(GREEN_PIN, LOW);
-    configTime(0, 0, NTP_SERVER);
+
+    configTime(TIMEZONE_OFFSET_SEC, 0, NTP_SERVER);
 #if SECURE_CLIENT == 1
     netClient.setTrustAnchors(&cert);
 #else
@@ -924,21 +921,8 @@ void setup() {
 #if WIFI_POWER
     WiFi.setOutputPower(WIFI_POWER);
 #endif
-    WiFi.begin(SSID, PASSWORD);
-    ledOnOff = false;
-    while (WiFi.status() != WL_CONNECTED) {
-#if SERIAL_OUT == 1
-        Serial.print(".");
-#endif
-        if (ledOnOff) {
-            digitalWrite(BLUE_PIN, HIGH);
-            ledOnOff = false;
-        } else {
-            digitalWrite(BLUE_PIN, LOW);
-            ledOnOff = true;
-        }
-        delay(500);
-    }
+
+    connectWiFi();
 
     ArduinoOTA.setHostname("esp8266meteo");
     ArduinoOTA.begin();
@@ -990,11 +974,7 @@ void setup() {
     server.serveStatic("/", LittleFS, "/")
         .setDefaultFile("index.html")
         .setCacheControl(CACHE_MAX_AGE);
-    server.onNotFound([](AsyncWebServerRequest *request) {
-        if (!handleFileRead(request)) {
-            request->send(404, "text/plain", "File Not Found");
-        }
-    });
+
     server.begin();
 
 #if SERIAL_OUT == 1
@@ -1032,8 +1012,7 @@ void setup() {
     Serial.println(now);
 #endif
     startTime = now;
-    localStTime = startTime + TIMEZONE_OFFSET_SEC;
-    snprintf(startBuffer, sizeof(startBuffer), "%s", ctime(&localStTime));
+    snprintf(startBuffer, sizeof(startBuffer), "%s", ctime(&startTime));
     startBuffer[strlen(startBuffer) - 1] = '\0';
     digitalWrite(GREEN_PIN, HIGH);
     greenLed = millis();
@@ -1045,12 +1024,16 @@ void setup() {
     TrendTracker_init(&trendPressure, PRESSURE_THRESHOLD);
     TrendTracker_init(&trendHumidity, HUMIDITY_THRESHOLD);
 
+    char data[128];
+    rst_info* resetInfo = system_get_rst_info();
+    snprintf(data, sizeof(data), "{\"M\":\"Reset reason: %s\"}", resetReasonToString(resetInfo->reason));
+    toLog(SYS_LOG, "IN", data);
 }
 
 /*######################################################################################*/
 
 void loop() {
-
+    static unsigned long int botLastTime = 0;
     readData();
     MDNS.update();
     if (millis() - botLastTime > BOT_MTBS) {

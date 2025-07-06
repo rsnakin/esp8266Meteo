@@ -41,10 +41,10 @@ Connecting ESP8266EX NodeMCU 1.0 (ESP-12E Module) pins:
 
 #pragma once
 
-#define VERSION       "3.8.0"
-#define BUILD         "00293"
+#define VERSION       "3.8.2"
+#define BUILD         "00309"
 #define SERIAL_OUT    0 // 1 ON or 0 OFF
-
+#define HOSTNAME      "esp8266meteo"
 #define SERVER_STATIC 1 // 1 YES or 0 NO
 #define CACHE_MAX_AGE "max-age=86400"
 
@@ -52,7 +52,7 @@ Connecting ESP8266EX NodeMCU 1.0 (ESP-12E Module) pins:
 
 #define TIMEZONE_OFFSET      3 // Set your time zone offset. For example: Europe/Moscow (UTC+3) -> offset = 3
 #define TIMEZONE_OFFSET_SEC (TIMEZONE_OFFSET * 3600)
-#define NTP_SERVER          "pool.ntp.org" // Set the closest available NTP server for time synchronization
+#define NTP_SERVER "time.google.com" // Set the closest available NTP server for time synchronization (pool.ntp.org)
 
 //#define WIFI_POWER    20.5 // 20.5 max WiFi Power
 
@@ -84,27 +84,27 @@ Connecting ESP8266EX NodeMCU 1.0 (ESP-12E Module) pins:
 #define DS18B20       1
 #define BMP180        2
 #define DHT11         3
-#define BOT_MTBS      5000L
-#define SENSORS_DELAY 30000L
+#define BOT_MTBS      8000L
+#define SENSORS_DELAY 60000L
 
-void   readData();
-String getContentType(String filename, AsyncWebServerRequest *request);
-char   *formatBytes(char *formatedBytes, size_t sizeFormatedBytes, size_t bytes);
-void   *memCopy(void *dest, const void *src, size_t n);
-void   returnFail(AsyncWebServerRequest *request, const char *msg);
-void   diskUsage(AsyncWebServerRequest *request);
-void   logsList(AsyncWebServerRequest *request);
-void   clearLogs(AsyncWebServerRequest *request);
-void   getLog(AsyncWebServerRequest *request);
-bool   handleFileRead(AsyncWebServerRequest *request);
-bool   isRainLikely();
-void   setThresholds();
-void   handleFileDelete(AsyncWebServerRequest *request);
-void   handleFileList(AsyncWebServerRequest *request);
-void   getAllData(AsyncWebServerRequest *request);
-void   handleNotFound(AsyncWebServerRequest *request);
-void   handleNewMessages(int numNewMessages);
-void   createLog(const char *fileNamePath);
-void   toLog(const char *fileNamePath, const char *action, char *data);
-int    getMaxLogNumber();
-void   rotateLogs();
+void        readData();
+String      getContentType(String filename, AsyncWebServerRequest *request);
+char       *formatBytes(size_t bytes);
+void       *memCopy(void *dest, const void *src, size_t n);
+void        diskUsage(AsyncWebServerRequest *request);
+void        logsList(AsyncWebServerRequest *request);
+void        clearLogs(AsyncWebServerRequest *request);
+void        getLog(AsyncWebServerRequest *request);
+bool        isRainLikely();
+void        setThresholds();
+void        handleFileDelete(AsyncWebServerRequest *request);
+void        handleFileList(AsyncWebServerRequest *request);
+void        getAllData(AsyncWebServerRequest *request);
+void        handleNewMessages(int numNewMessages);
+void        createLog(const char *fileNamePath);
+void        toLog(const char *fileNamePath, const char *action, char *data);
+void        logAndLed(const char* u, char code, unsigned long rt);
+void        connectWiFi();
+int         getMaxLogNumber();
+void        rotateLogs();
+const char* resetReasonToString(uint8 reason);
