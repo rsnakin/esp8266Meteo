@@ -14,7 +14,7 @@
        {"YourWiFi-1","YourPassword-1"},\
        {"YourWiFi-2","YourPassword-2"},\
        ...
-       {"YourWiFi-N","YourPassword-"}\
+       {"YourWiFi-N","YourPassword-N"}\
     }
     const WifiCredential WIFI_CREDENTIALS[] PROGMEM = WIFI_CREDENTIALS_INIT;
     #define WIFI_CREDENTIALS_COUNT (sizeof(WIFI_CREDENTIALS)/sizeof(WIFI_CREDENTIALS[0]))
