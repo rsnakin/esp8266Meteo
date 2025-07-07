@@ -918,7 +918,7 @@ void setup() {
     Serial.print(F("Connecting to Wifi SSID "));
     Serial.print(SSID);
 #endif
-#if WIFI_POWER
+#ifdef WIFI_POWER
     WiFi.setOutputPower(WIFI_POWER);
 #endif
 
